@@ -102,54 +102,42 @@ type t =
   { (* File specification by targets *)
     files      : (Path.t, File_spec.packed) Hashtbl.t
   ; contexts   : Context.t list
-  ; (* Table from target to digest of [(deps, targets, action)] *)
+  ; (* Table from target to digest of
+       [(deps, digests of deps contents, targets, action)] *)
     trace      : (Path.t, Digest.t) Hashtbl.t
-  ; timestamps : (Path.t, float) Hashtbl.t
+  ; digests    : (Path.t, Digest.t) Hashtbl.t
   ; mutable local_mkdirs : Path.Local.Set.t
   }
 
 
 let all_targets t = Hashtbl.fold t.files ~init:[] ~f:(fun ~key ~data:_ acc -> key :: acc)
 
-let timestamp t fn =
-  match Hashtbl.find t.timestamps fn with
-  | Some _ as x -> x
-  | None ->
-    match Unix.lstat (Path.to_string fn) with
-    | exception _ -> None
-    | stat        ->
-      let ts = stat.st_mtime in
-      Hashtbl.add t.timestamps ~key:fn ~data:ts;
-      Some ts
-
-type limit_timestamp =
-  { missing_files : bool
-  ; limit         : float option
-  }
-
-let merge_timestamp t fns ~merge =
-  let init =
-    { missing_files = false
-    ; limit         = None
-    }
+(*
+let follow_symlinks fn =
+  let rec loop n fn =
+    if n > 500 then
+      None
+    else
+      match Unix.readlink fn with
+      | fn -> resolve_link (n + 1) fn
+      | exception _ -> Some (Path.of_string fn)
   in
-  List.fold_left fns ~init
-    ~f:(fun acc fn ->
-      match timestamp t fn with
-      | None    -> { acc with missing_files = true }
-      | Some ts ->
-        { acc with
-          limit =
-            match acc.limit with
-            | None -> Some ts
-            | Some ts' -> Some (merge ts ts')
-        })
+  match loop 0 (Path.to_string fn) with
+  | None -> fn
+  | Some fn -> fn
+*)
 
-let min_timestamp t fns = merge_timestamp t fns ~merge:min
-let max_timestamp t fns = merge_timestamp t fns ~merge:max
+let digest_file_contents t fn =
+  match Hashtbl.find t.digests fn with
+  | Some x -> x
+  | None ->
+    let digest = Digest.file (Path.to_string fn) in
+    Hashtbl.add t.digests ~key:fn ~data:digest;
+    digest
 
 let find_file_exn t file =
-  Hashtbl.find_exn t.files file ~string_of_key:(fun fn -> sprintf "%S" (Path.to_string fn))
+  Hashtbl.find_exn t.files file
+    ~string_of_key:(fun fn -> sprintf "%S" (Path.to_string fn))
     ~table_desc:(fun _ -> "<target to rule>")
 
 let is_target t file = Hashtbl.mem t.files file
@@ -338,14 +326,13 @@ let create_file_specs t targets rule ~allow_override =
 
 module Pre_rule = Build_interpret.Rule
 
-let refresh_targets_timestamps_after_rule_execution t targets =
+let clear_targets_digests_after_rule_execution t targets =
   let missing =
     List.fold_left targets ~init:Pset.empty ~f:(fun acc fn ->
       match Unix.lstat (Path.to_string fn) with
       | exception _ -> Pset.add fn acc
-      | stat ->
-        let ts = stat.st_mtime in
-        Hashtbl.replace t.timestamps ~key:fn ~data:ts;
+      | (_ : Unix.stats) ->
+        Hashtbl.remove t.digests fn;
         acc)
   in
   if not (Pset.is_empty missing) then
@@ -420,6 +407,7 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
     let hash =
       let trace =
         (all_deps_as_list,
+         List.map all_deps_as_list ~f:(digest_file_contents t),
          targets_as_list,
          Option.map context ~f:(fun c -> c.name),
          action)
@@ -432,7 +420,7 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
       else
         None
     in
-    let rule_changed =
+    let deps_or_rule_changed =
       List.fold_left targets_as_list ~init:false ~f:(fun acc fn ->
         match Hashtbl.find t.trace fn with
         | None ->
@@ -442,29 +430,7 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
           Hashtbl.replace t.trace ~key:fn ~data:hash;
           acc || prev_hash <> hash)
     in
-    let targets_min_ts = min_timestamp t targets_as_list  in
-    let deps_max_ts    = max_timestamp t all_deps_as_list in
-    if rule_changed ||
-       match deps_max_ts, targets_min_ts with
-       | _, { missing_files = true; _ } ->
-         (* Missing targets -> rebuild *)
-         true
-       | _, { missing_files = false; limit = None } ->
-         (* CR-someday jdimino: no target, this should be a user error *)
-         true
-       | { missing_files = true; _ }, _ ->
-         Sexp.code_error
-           "Dependencies missing after waiting for them"
-           [ "all_deps", Sexp.To_sexp.list Path.sexp_of_t all_deps_as_list ]
-       | { limit = None; missing_files = false },
-         { missing_files = false; _ } ->
-         (* No dependencies, no need to do anything if the rule hasn't changed and targets
-            are here. *)
-         false
-       | { limit = Some deps_max; missing_files = false },
-         { limit = Some targets_min; missing_files = false } ->
-         targets_min < deps_max
-    then (
+    if deps_or_rule_changed then (
       (* Do not remove files that are just updated, otherwise this would break incremental
          compilation *)
       let targets_to_remove =
@@ -496,7 +462,7 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
       Option.iter sandbox_dir ~f:Path.rm_rf;
       (* All went well, these targets are no longer pending *)
       pending_targets := Pset.diff !pending_targets targets_to_remove;
-      refresh_targets_timestamps_after_rule_execution t targets_as_list
+      clear_targets_digests_after_rule_execution t targets_as_list
     ) else
       return ()
   in
@@ -610,7 +576,7 @@ let create ~contexts ~file_tree ~rules =
     { contexts
     ; files      = Hashtbl.create 1024
     ; trace      = Trace.load ()
-    ; timestamps = Hashtbl.create 1024
+    ; digests    = Hashtbl.create 1024
     ; local_mkdirs = Path.Local.Set.empty
     } in
   List.iter rules ~f:(compile_rule t ~all_targets_by_dir ~allow_override:false);
