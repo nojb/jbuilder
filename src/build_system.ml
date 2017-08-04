@@ -103,12 +103,10 @@ type t =
     files      : (Path.t, File_spec.packed) Hashtbl.t
   ; contexts   : Context.t list
   ; (* Table from target to digest of
-       [(deps, digests of deps contents, targets, action)] *)
+       [(deps (filename + contents), targets (filename only), action)] *)
     trace      : (Path.t, Digest.t) Hashtbl.t
-  ; digests    : (Path.t, Digest.t) Hashtbl.t
   ; mutable local_mkdirs : Path.Local.Set.t
   }
-
 
 let all_targets t = Hashtbl.fold t.files ~init:[] ~f:(fun ~key ~data:_ acc -> key :: acc)
 
@@ -126,14 +124,6 @@ let follow_symlinks fn =
   | None -> fn
   | Some fn -> fn
 *)
-
-let digest_file_contents t fn =
-  match Hashtbl.find t.digests fn with
-  | Some x -> x
-  | None ->
-    let digest = Digest.file (Path.to_string fn) in
-    Hashtbl.add t.digests ~key:fn ~data:digest;
-    digest
 
 let find_file_exn t file =
   Hashtbl.find_exn t.files file
@@ -326,13 +316,13 @@ let create_file_specs t targets rule ~allow_override =
 
 module Pre_rule = Build_interpret.Rule
 
-let clear_targets_digests_after_rule_execution t targets =
+let clear_targets_digests_after_rule_execution targets =
   let missing =
     List.fold_left targets ~init:Pset.empty ~f:(fun acc fn ->
       match Unix.lstat (Path.to_string fn) with
       | exception _ -> Pset.add fn acc
       | (_ : Unix.stats) ->
-        Hashtbl.remove t.digests fn;
+        Utils.Cached_digest.remove fn;
         acc)
   in
   if not (Pset.is_empty missing) then
@@ -406,8 +396,8 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
     let targets_as_list  = Pset.elements targets  in
     let hash =
       let trace =
-        (all_deps_as_list,
-         List.map all_deps_as_list ~f:(digest_file_contents t),
+        (List.map all_deps_as_list ~f:(fun fn ->
+           (fn, Utils.Cached_digest.file fn)),
          targets_as_list,
          Option.map context ~f:(fun c -> c.name),
          action)
@@ -462,7 +452,7 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
       Option.iter sandbox_dir ~f:Path.rm_rf;
       (* All went well, these targets are no longer pending *)
       pending_targets := Pset.diff !pending_targets targets_to_remove;
-      clear_targets_digests_after_rule_execution t targets_as_list
+      clear_targets_digests_after_rule_execution targets_as_list
     ) else
       return ()
   in
@@ -576,7 +566,6 @@ let create ~contexts ~file_tree ~rules =
     { contexts
     ; files      = Hashtbl.create 1024
     ; trace      = Trace.load ()
-    ; digests    = Hashtbl.create 1024
     ; local_mkdirs = Path.Local.Set.empty
     } in
   List.iter rules ~f:(compile_rule t ~all_targets_by_dir ~allow_override:false);

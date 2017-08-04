@@ -43,3 +43,12 @@ val find_deps   : dir:Path.t -> 'a String_map.t -> string -> 'a
     - [obj_name_of_basename "toto.pp.ml" = "toto"]
 *)
 val obj_name_of_basename : string -> string
+
+(** Digest files with caching *)
+module Cached_digest : sig
+  (** Digest the contents of the following file *)
+  val file : Path.t -> Digest.t
+
+  (** Clear the following digest from the cache *)
+  val remove : Path.t -> unit
+end

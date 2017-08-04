@@ -135,3 +135,17 @@ let obj_name_of_basename fn =
   match String.index fn '.' with
   | None -> fn
   | Some i -> String.sub fn ~pos:0 ~len:i
+
+module Cached_digest = struct
+  let cache = Hashtbl.create 1024
+
+  let file fn =
+    match Hashtbl.find cache fn with
+    | Some x -> x
+    | None ->
+      let digest = Digest.file (Path.to_string fn) in
+      Hashtbl.add cache ~key:fn ~data:digest;
+      digest
+
+  let remove fn = Hashtbl.remove cache fn
+end
