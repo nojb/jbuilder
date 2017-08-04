@@ -420,7 +420,13 @@ let compile_rule t ~all_targets_by_dir ?(allow_override=false) pre_rule =
           Hashtbl.replace t.trace ~key:fn ~data:hash;
           acc || prev_hash <> hash)
     in
-    if deps_or_rule_changed then (
+    let targets_missing =
+      List.exists targets_as_list ~f:(fun fn ->
+        match Unix.lstat (Path.to_string fn) with
+        | exception _ -> true
+        | (_ : Unix.stats) -> false)
+    in
+    if deps_or_rule_changed || targets_missing then (
       (* Do not remove files that are just updated, otherwise this would break incremental
          compilation *)
       let targets_to_remove =
