@@ -51,4 +51,8 @@ module Cached_digest : sig
 
   (** Clear the following digest from the cache *)
   val remove : Path.t -> unit
+
+  (** Dump/load the cache to/from the disk *)
+  val dump : unit -> unit
+  val load : unit -> unit
 end

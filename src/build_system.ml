@@ -496,6 +496,7 @@ module Trace = struct
   let file = "_build/.db"
 
   let dump (trace : t) =
+    Utils.Cached_digest.dump ();
     let sexp =
       Sexp.List (
         Hashtbl.fold trace ~init:Pmap.empty ~f:(fun ~key ~data acc ->
@@ -508,6 +509,7 @@ module Trace = struct
       Io.write_file file (Sexp.to_string sexp)
 
   let load () =
+    Utils.Cached_digest.load ();
     let trace = Hashtbl.create 1024 in
     if Sys.file_exists file then begin
       let sexp = Sexp_lexer.Load.single file in
