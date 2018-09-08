@@ -150,9 +150,9 @@ module Gen(P : Install_rules.Params) = struct
      +-----------------------------------------------------------------+ *)
 
   let tests_rules (t : Tests.t) ~dir ~scope ~dir_contents
-        ~dir_kind ~src_dir =
+        ~dir_kind =
     let test_kind (loc, name) =
-      let sources = SC.source_files sctx ~src_path:src_dir in
+      let sources = Dir_contents.text_files dir_contents in
       let expected_basename = name ^ ".expected" in
       if String.Set.mem sources expected_basename then
         `Expect
@@ -182,7 +182,8 @@ module Gen(P : Install_rules.Params) = struct
       let alias =
         { alias with
           Alias_conf.
-          action = Some (loc, Diff diff)
+          deps = Unnamed (Dep_conf.File diff.file1) :: alias.Alias_conf.deps
+        ; action = Some (loc, Diff diff)
         ; locks = t.locks
         } in
       (alias, rule)
@@ -244,7 +245,7 @@ module Gen(P : Install_rules.Params) = struct
             loop stanzas merlins cctxs
           | Tests tests ->
             let cctx, merlin =
-              tests_rules tests ~dir ~scope ~src_dir
+              tests_rules tests ~dir ~scope
                 ~dir_contents ~dir_kind:kind
             in
             loop stanzas (merlin :: merlins)
