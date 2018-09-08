@@ -1,7 +1,14 @@
 (tests
  (names expect_test regular_test)
- (modules :standard \ singular))
+ (modules :standard \ expect_test_generated singular))
 
 (test
  (name singular)
  (modules singular))
+
+(rule (with-stdout-to expect_test_generated.expected
+                      (echo "expect test (with generated .expected)\n")))
+
+(test
+ (name expect_test_generated)
+ (modules expect_test_generated))
