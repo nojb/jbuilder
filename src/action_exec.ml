@@ -86,6 +86,7 @@ let rec exec t ~ectx ~dir ~env ~stdout_to ~stderr_to =
       Io.copy_channels ic oc);
     Fiber.return ()
   | Copy (src, dst) ->
+    let dst = Option.value dst ~default:(Path.relative dir (Path.basename src)) in
     Io.copy_file ~src ~dst ();
     Fiber.return ()
   | Symlink (src, dst) ->

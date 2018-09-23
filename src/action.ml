@@ -80,7 +80,7 @@ struct
           (let%map src = path
            and dst = path
            in
-           Copy (src, dst))
+           Copy (src, Some dst))
         ; "copy#",
           (let%map src = path
            and dst = path
@@ -153,8 +153,10 @@ struct
     | Echo xs ->
       List (atom "echo" :: List.map xs ~f:string)
     | Cat x -> List [atom "cat"; path x]
-    | Copy (x, y) ->
+    | Copy (x, Some y) ->
       List [atom "copy"; path x; path y]
+    | Copy (x, None) ->
+      List [atom "copy"; path x]
     | Symlink (x, y) ->
       List [atom "symlink"; path x; path y]
     | Copy_and_add_line_directive (x, y) ->
@@ -194,7 +196,7 @@ struct
   let progn ts = Progn ts
   let echo s = Echo s
   let cat path = Cat path
-  let copy a b = Copy (a, b)
+  let copy a b = Copy (a, Some b)
   let symlink a b = Symlink (a, b)
   let copy_and_add_line_directive a b = Copy_and_add_line_directive (a, b)
   let system s = System s
@@ -227,7 +229,7 @@ module Make_mapper
     | Progn l -> Progn (List.map l ~f:(fun t -> f t ~dir ~f_program ~f_string ~f_path))
     | Echo xs -> Echo (List.map xs ~f:(f_string ~dir))
     | Cat x -> Cat (f_path ~dir x)
-    | Copy (x, y) -> Copy (f_path ~dir x, f_path ~dir y)
+    | Copy (x, y) -> Copy (f_path ~dir x, Option.map ~f:(f_path ~dir) y)
     | Symlink (x, y) ->
       Symlink (f_path ~dir x, f_path ~dir y)
     | Copy_and_add_line_directive (x, y) ->
@@ -483,7 +485,7 @@ module Unexpanded = struct
       | Echo xs -> Echo (List.concat_map xs ~f:(E.strings ~dir ~f))
       | Cat x -> Cat (E.path ~dir ~f x)
       | Copy (x, y) ->
-        Copy (E.path ~dir ~f x, E.path ~dir ~f y)
+        Copy (E.path ~dir ~f x, Option.map ~f:(E.path ~dir ~f) y)
       | Symlink (x, y) ->
         Symlink (E.path ~dir ~f x, E.path ~dir ~f y)
       | Copy_and_add_line_directive (x, y) ->
@@ -579,7 +581,7 @@ module Unexpanded = struct
     | Echo xs -> Echo (List.map xs ~f:(E.cat_strings ~dir ~f))
     | Cat x -> Cat (E.path ~dir ~f x)
     | Copy (x, y) ->
-      Copy (E.path ~dir ~f x, E.path ~dir ~f y)
+      Copy (E.path ~dir ~f x, Option.map ~f:(E.path ~dir ~f) y)
     | Symlink (x, y) ->
       Symlink (E.path ~dir ~f x, E.path ~dir ~f y)
     | Copy_and_add_line_directive (x, y) ->
@@ -698,10 +700,11 @@ module Infer = struct
       | Cat fn               -> acc +< fn
       | Write_file (fn, _)  -> acc +@ fn
       | Rename (src, dst)    -> acc +< src +@ dst
-      | Copy (src, dst)
+      | Copy (src, Some dst)
       | Copy_and_add_line_directive (src, dst)
       | Symlink (src, dst) -> acc +< src +@ dst
-      | Chdir (_, t)
+      | Copy (src, None) -> acc +< src
+      | Chdir (_, t) -> infer acc t
       | Setenv (_, _, t)
       | Ignore (_, t) -> infer acc t
       | Progn l -> List.fold_left l ~init:acc ~f:infer

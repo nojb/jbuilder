@@ -39,7 +39,7 @@ module type Ast = sig
     | Progn          of t list
     | Echo           of string list
     | Cat            of path
-    | Copy           of path * path
+    | Copy           of path * path option
     | Symlink        of path * path
     | Copy_and_add_line_directive of path * path
     | System         of string

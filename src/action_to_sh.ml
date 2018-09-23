@@ -45,6 +45,7 @@ let simplify act =
     | Cat x ->
       cat x :: acc
     | Copy (x, y) ->
+      let y = Option.value y ~default:Filename.current_dir_name in
       Run ("cp", [x; y]) :: acc
     | Symlink (x, y) ->
       Run ("ln", ["-s"; x; y]) :: Run ("rm", ["-f"; y]) :: acc

@@ -233,7 +233,7 @@ let write_file_dyn fn =
 
 let copy ~src ~dst =
   path src >>>
-  action ~targets:[dst] (Copy (src, dst))
+  action ~targets:[dst] (Copy (src, Some dst))
 
 let copy_and_add_line_directive ~src ~dst =
   path src >>>
