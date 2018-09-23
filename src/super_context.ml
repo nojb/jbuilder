@@ -847,7 +847,7 @@ module Action = struct
     let bindings = Pform.Map.superpose sctx.pforms bindings in
     let map_exe = map_exe sctx in
     if targets_written_by_user = Alias then begin
-      match Action.Infer.unexpanded_targets t with
+      match Action.Infer.unexpanded_targets ~dir t with
       | [] -> ()
       | x :: _ ->
         let loc = String_with_vars.loc x in
@@ -861,16 +861,16 @@ module Action = struct
     in
     let { Action.Infer.Outcome. deps; targets } =
       match targets_written_by_user with
-      | Infer -> Action.Infer.partial t ~all_targets:true
+      | Infer -> Action.Infer.partial ~dir:(Left dir) t ~all_targets:true
       | Static targets_written_by_user ->
         let targets_written_by_user = Path.Set.of_list targets_written_by_user in
         let { Action.Infer.Outcome. deps; targets } =
-          Action.Infer.partial t ~all_targets:false
+          Action.Infer.partial ~dir:(Left dir) t ~all_targets:false
         in
         { deps; targets = Path.Set.union targets targets_written_by_user }
       | Alias ->
         let { Action.Infer.Outcome. deps; targets = _ } =
-          Action.Infer.partial t ~all_targets:false
+          Action.Infer.partial ~dir:(Left dir) t ~all_targets:false
         in
         { deps; targets = Path.Set.empty }
     in
@@ -909,7 +909,7 @@ module Action = struct
       >>>
       Build.dyn_path_set (Build.arr (fun action ->
         let { Action.Infer.Outcome.deps; targets = _ } =
-          Action.Infer.infer action
+          Action.Infer.infer ~dir action
         in
         deps))
       >>>

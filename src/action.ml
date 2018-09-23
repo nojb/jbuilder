@@ -676,6 +676,7 @@ module Infer = struct
     type path
     type program
     type outcome
+    val ( +<@ ) : outcome -> path * path -> outcome
     val ( +@ ) : outcome -> path -> outcome
     val ( +< ) : outcome -> path -> outcome
     val ( +<! ) : outcome -> program -> outcome
@@ -693,21 +694,21 @@ module Infer = struct
     open Ast
     open Out
     open Prim
-    let rec infer acc t =
+    let rec infer ~dir acc t =
       match t with
       | Run (prog, _) -> acc +<! prog
-      | Redirect (_, fn, t)  -> infer (acc +@ fn) t
+      | Redirect (_, fn, t)  -> infer ~dir (acc +@ fn) t
       | Cat fn               -> acc +< fn
       | Write_file (fn, _)  -> acc +@ fn
       | Rename (src, dst)    -> acc +< src +@ dst
       | Copy (src, Some dst)
       | Copy_and_add_line_directive (src, dst)
       | Symlink (src, dst) -> acc +< src +@ dst
-      | Copy (src, None) -> acc +< src
-      | Chdir (_, t) -> infer acc t
+      | Copy (src, None) -> acc +<@ (dir, src)
+      | Chdir (dir, t) -> infer ~dir acc t
       | Setenv (_, _, t)
-      | Ignore (_, t) -> infer acc t
-      | Progn l -> List.fold_left l ~init:acc ~f:infer
+      | Ignore (_, t) -> infer ~dir acc t
+      | Progn l -> List.fold_left l ~init:acc ~f:(infer ~dir)
       | Digest_files l -> List.fold_left l ~init:acc ~f:(+<)
       | Diff { optional; file1; file2; mode = _ } ->
         if optional then acc else acc +< file1 +< file2
@@ -719,9 +720,9 @@ module Infer = struct
       | Remove_tree _
       | Mkdir _ -> acc
 
-    let infer t =
+    let infer ~(dir : Ast.path) t =
       let { deps; targets } =
-        infer { deps = Pset.empty; targets = Pset.empty } t
+        infer ~dir { deps = Pset.empty; targets = Pset.empty } t
       in
       (* A file can be inferred as both a dependency and a target,
          for instance:
@@ -740,6 +741,10 @@ module Infer = struct
         match prog with
         | Ok p -> acc +< p
         | Error _ -> acc
+      let ( +<@ ) acc (dir, fn) =
+        { targets = Path.Set.add acc.targets (Path.relative dir (Path.basename fn))
+        ; deps = Path.Set.add acc.deps fn
+        }
     end)
 
   module Partial = Make(Unexpanded.Partial.Past)(Path.Set)(Outcome)(struct
@@ -755,6 +760,14 @@ module Infer = struct
         match (fn : Unexpanded.Partial.program) with
         | Left  (This fn) -> { acc with deps = Path.Set.add acc.deps fn }
         | Left  (Search _) | Right _ -> acc
+      let ( +<@ ) acc (dir, fn) =
+        match dir, fn with
+        | Left dir, Left fn ->
+          { targets = Path.Set.add acc.targets (Path.relative dir (Path.basename fn))
+          ; deps = Path.Set.add acc.deps fn
+          }
+        | _ ->
+          acc
     end)
 
   module Partial_with_all_targets = Make(Unexpanded.Partial.Past)(Path.Set)(Outcome)(struct
@@ -772,13 +785,21 @@ module Infer = struct
         match (fn : Unexpanded.Partial.program) with
         | Left  (This fn) -> { acc with deps = Path.Set.add acc.deps fn }
         | Left  (Search _) | Right _ -> acc
+      let ( +<@ ) acc (dir, fn) =
+        match dir, fn with
+        | Left dir, Left fn ->
+          { targets = Path.Set.add acc.targets (Path.relative dir (Path.basename fn))
+          ; deps = Path.Set.add acc.deps fn
+          }
+        | _ ->
+          acc
     end)
 
-  let partial ~all_targets t =
+  let partial ~all_targets ~dir t =
     if all_targets then
-      Partial_with_all_targets.infer t
+      Partial_with_all_targets.infer ~dir t
     else
-      Partial.infer t
+      Partial.infer ~dir t
 
   module S_unexp = struct
     type t = String_with_vars.t list
@@ -802,10 +823,11 @@ module Infer = struct
           { acc with targets = fn :: acc.targets }
       let ( +< ) acc _ = acc
       let ( +<! )= ( +< )
+      let ( +<@ ) acc (_, fn) = acc +@ fn
     end)
 
-  let unexpanded_targets t =
-    (Unexp.infer t).targets
+  let unexpanded_targets ~dir t =
+    (Unexp.infer ~dir:(String_with_vars.make_text Loc.none (Path.to_string dir)) t).targets
 end
 
 let symlink_managed_paths sandboxed deps =
