@@ -266,7 +266,7 @@ end = struct
   open Build.O
 
   let expander ~acc sctx ~dir ~dep_kind ~scope ~targets_written_by_user
-        ~map_exe ~bindings pform syntax_version =
+        ~map_exe ~bindings ~env pform syntax_version =
     let loc = String_with_vars.Var.loc pform in
     let key = String_with_vars.Var.full_name pform in
     let res =
@@ -378,7 +378,7 @@ end = struct
           end
         | Macro (Path_no_dep, s) -> Some [Value.Dir (Path.relative dir s)]
         | Macro (Env, s) ->
-          begin match Env.get sctx.context.env s with
+          begin match Env.get env s with
           | None ->
             Resolved_forms.add_fail acc { fail = fun () ->
               Errors.fail loc "Environment variable %S is not set." s

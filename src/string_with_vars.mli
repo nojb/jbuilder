@@ -65,7 +65,7 @@ module Var : sig
   val describe : t -> string
 end
 
-type 'a expander = Var.t -> Syntax.Version.t -> 'a
+type 'a expander = Env.t -> Var.t -> Syntax.Version.t -> 'a
 
 val expand
   :  t
@@ -78,6 +78,7 @@ val partial_expand
   :  t
   -> mode:'a Mode.t
   -> dir:Path.t
+  -> env:Env.t
   -> f:(Value.t list option expander)
   -> 'a Partial.t
 
