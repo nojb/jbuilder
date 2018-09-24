@@ -78,9 +78,9 @@ struct
           (path >>| fun x -> Cat x)
         ; "copy",
           (let%map src = path
-           and dst = path
+           and dst = if_eos ~then_:(return None) ~else_:(path >>| Option.some)
            in
-           Copy (src, Some dst))
+           Copy (src, dst))
         ; "copy#",
           (let%map src = path
            and dst = path
