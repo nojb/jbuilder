@@ -376,7 +376,16 @@ end = struct
             in
             Resolved_forms.add_ddep acc ~key data
           end
-        | Macro (Path_no_dep, s) -> Some [Value.Dir (Path.relative dir s)])
+        | Macro (Path_no_dep, s) -> Some [Value.Dir (Path.relative dir s)]
+        | Macro (Env, s) ->
+          begin match Env.get sctx.context.env s with
+          | None ->
+            Resolved_forms.add_fail acc { fail = fun () ->
+              Errors.fail loc "Environment variable %S is not set." s
+            }
+          | Some s ->
+            Some [Value.String s]
+          end)
     in
     Option.iter res ~f:(fun v ->
       acc.sdeps <- Path.Set.union
