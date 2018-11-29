@@ -25,6 +25,7 @@ module Macro : sig
     | Path_no_dep
     | Ocaml_config
     | Env
+    | Transitive_archives
 end
 
 module Expansion : sig

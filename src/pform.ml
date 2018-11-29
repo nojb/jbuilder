@@ -36,6 +36,7 @@ module Macro = struct
     | Path_no_dep
     | Ocaml_config
     | Env
+    | Transitive_archives
 
   let to_sexp =
     let open Sexp.Encoder in
@@ -53,6 +54,7 @@ module Macro = struct
     | Path_no_dep -> string "Path_no_dep"
     | Ocaml_config -> string "Ocaml_config"
     | Env -> string "Env"
+    | Transitive_archives -> string "Transitive_archives"
 end
 
 module Expansion = struct
@@ -125,6 +127,8 @@ module Map = struct
       ; "path-no-dep", deleted_in ~version:(1, 0) Macro.Path_no_dep
       ; "ocaml-config", macro Ocaml_config
       ; "env", since ~version:(1, 4) Macro.Env
+
+      ; "transitive-archives", macro Transitive_archives
       ]
 
   let create ~(context : Context.t) ~cxx_flags =

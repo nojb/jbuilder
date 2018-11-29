@@ -177,7 +177,8 @@ type targets =
   | Infer
   | Alias
 
-let path_exp path = [Value.Path path]
+let path_exp_list paths = List.map ~f:(fun path -> Value.Path path) paths
+let path_exp path = path_exp_list [path]
 let str_exp  str  = [Value.String str]
 
 let parse_lib_file ~loc s =
@@ -185,6 +186,18 @@ let parse_lib_file ~loc s =
   | None ->
     Errors.fail loc "invalid %%{lib:...} form: %s" s
   | Some (lib, f) -> (Lib_name.of_string_exn ~loc:(Some loc) lib, f)
+
+let parse_mode_libs ~loc s =
+  let err () = Errors.fail loc "invalid %%{transitive-archives:...} form: %s" s in
+  match String.lsplit2 s ~on:':' with
+  | None -> err ()
+  | Some (mode, f) ->
+    begin match Mode.of_string mode with
+    | None -> err ()
+    | Some mode ->
+      let libs = String.split f ~on:',' in
+      (mode, libs)
+    end
 
 type dynamic =
   { read_package : Package.t -> (unit, string option) Build.t
@@ -259,6 +272,27 @@ let expand_and_record acc ~map_exe ~dep_kind ~scope
           in
           add_ddep dep
         end
+    end
+  | Macro (Transitive_archives, s) ->
+    let mode, lib_names = parse_mode_libs ~loc s in
+    let libs =
+      Lib.DB.find_many (Scope.libs t.scope) ~loc
+        (List.map ~f:(fun lib_name -> Lib_name.of_string_exn ~loc:(Some loc)
+                                        lib_name) lib_names)
+    in
+    begin match libs with
+    | Ok libs ->
+      List.iter ~f:(fun lib -> Resolved_forms.add_lib_dep acc (Lib.name lib) dep_kind) libs;
+      begin match Lib.closure libs ~linking:true with
+      | Ok libs ->
+        let libs = List.filter ~f:Lib.is_local libs in
+        let f lib = Mode.Dict.get (Lib.archives lib) mode in
+        Some (path_exp_list (List.concat_map libs ~f))
+      | Error exn ->
+        Resolved_forms.add_fail acc { fail = fun () -> raise exn }
+      end
+    | Error exn ->
+      Resolved_forms.add_fail acc { fail = fun () -> raise exn }
     end
   | Macro (Lib_available, s) -> begin
       let lib = Lib_name.of_string_exn ~loc:(Some loc) s in

@@ -16,6 +16,11 @@ let pp fmt = function
   | Byte -> Format.pp_print_string fmt "byte"
   | Native -> Format.pp_print_string fmt "native"
 
+let of_string = function
+  | "byte" -> Some Byte
+  | "native" -> Some Native
+  | _ -> None
+
 let choose byte native = function
   | Byte   -> byte
   | Native -> native

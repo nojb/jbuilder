@@ -18,6 +18,8 @@ val variant : t -> Variant.t
 
 val pp : t Fmt.t
 
+val of_string : string -> t option
+
 module Dict : sig
   type mode = t
 
