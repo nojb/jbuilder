@@ -32,6 +32,12 @@ let best_prog dir prog =
     let fn = Path.relative dir (prog ^ exe) in
     if exists fn then
       Some fn
+    else if exe <> "" then
+      let fn = Path.relative dir prog in
+      if exists fn then
+        Some fn
+      else
+        None
     else
       None
 
