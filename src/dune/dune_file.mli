@@ -367,6 +367,8 @@ module Executables : sig
     ; promote : Promote.t option
     ; install_conf : File_binding.Unexpanded.t Install_conf.t option
     }
+
+  val obj_dir : t -> dir:Path.Build.t -> Path.Build.t Obj_dir.t
 end
 
 module Rule : sig

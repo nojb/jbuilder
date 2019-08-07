@@ -1649,6 +1649,8 @@ module Executables = struct
          f names ~multi)
     in
     (make false, make true)
+
+  let obj_dir t ~dir = Obj_dir.make_exe ~dir ~name:(snd (List.hd t.names))
 end
 
 module Rule = struct
