@@ -1563,6 +1563,14 @@
     (diff? run.t run.t.corrected)))))
 
 (alias
+ (name variables-for-artifacts)
+ (deps (package dune) (source_tree test-cases/variables-for-artifacts))
+ (action
+  (chdir
+   test-cases/variables-for-artifacts
+   (progn (run %{exe:cram.exe} -test run.t) (diff? run.t run.t.corrected)))))
+
+(alias
  (name variants)
  (deps (package dune) (source_tree test-cases/variants))
  (action
@@ -1890,6 +1898,7 @@
   (alias unreadable-src)
   (alias upgrader)
   (alias use-meta)
+  (alias variables-for-artifacts)
   (alias variants)
   (alias variants-external-declaration)
   (alias variants-external-declaration-conflict)
@@ -2072,6 +2081,7 @@
   (alias transitive-deps-mode)
   (alias unreadable-src)
   (alias upgrader)
+  (alias variables-for-artifacts)
   (alias variants)
   (alias variants-external-declaration)
   (alias variants-external-declaration-conflict)
