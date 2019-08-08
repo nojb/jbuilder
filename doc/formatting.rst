@@ -15,17 +15,6 @@ Furthermore it can be used to format code of any defined dialect (see
 .. _ocamlformat: https://github.com/ocaml-ppx/ocamlformat
 .. _refmt: https://github.com/facebook/reason/tree/master/src/refmt
 
-Configuring automatic formatting (dune 2.0)
-===========================================
-
-If using ``(lang dune 2.0)``, there is nothing to do, formatting will be set up
-by default. It is possible to disable it by adding the following to
-``dune-project``:
-
-.. code:: scheme
-
-    (formatting disabled)
-
 Formatting a project
 ====================
 

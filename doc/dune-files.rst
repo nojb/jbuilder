@@ -175,6 +175,18 @@ language: The syntax is as a list of the following elements:
 
    dep-specification = dep+
 
+formatting
+----------
+
+If using ``(lang dune 2.0)``, :ref:`formatting-main` will be set up by
+default. It is possible to disable it by adding the following to
+``dune-project``:
+
+.. code:: scheme
+
+    (formatting disabled)
+
+
 ``dune``
 ========
 
