@@ -1,6 +1,6 @@
-****************
-General concepts
-****************
+*************
+Main concepts
+*************
 
 .. _variables:
 
