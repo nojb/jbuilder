@@ -149,6 +149,9 @@ struct
       | Cinaps.T cinaps ->
         Cinaps.gen_rules sctx cinaps ~dir ~scope;
         For_stanza.empty_none
+      | Rule rule ->
+        Simple_rules.user_rule sctx rule ~dir ~expander;
+        For_stanza.empty_none
       | _ ->
         For_stanza.empty_none
     in

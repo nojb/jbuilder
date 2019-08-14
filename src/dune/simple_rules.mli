@@ -4,6 +4,14 @@ open! Stdune
 open Import
 open Dune_file
 
+val targets :
+     Super_context.t
+  -> ?extra_bindings:Pform.Map.t
+  -> dir:Path.Build.t
+  -> expander:Expander.t
+  -> Rule.t
+  -> Path.Build.Set.t
+
 (** Interpret a [(rule ...)] stanza and return the targets it produces. *)
 val user_rule :
      Super_context.t
@@ -11,7 +19,7 @@ val user_rule :
   -> dir:Path.Build.t
   -> expander:Expander.t
   -> Rule.t
-  -> Path.Build.Set.t
+  -> unit
 
 (** Interpret a [(copy_files ...)] stanza and return the targets it produces. *)
 val copy_files :

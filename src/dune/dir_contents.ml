@@ -430,7 +430,7 @@ end = struct
         | Menhir.T menhir ->
           Menhir_rules.targets menhir
         | Rule rule ->
-          Simple_rules.user_rule sctx rule ~dir ~expander
+          Simple_rules.targets sctx rule ~dir ~expander
           |> Path.Build.Set.to_list
           |> List.map ~f:Path.Build.basename
         | Copy_files def ->

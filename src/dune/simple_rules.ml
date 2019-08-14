@@ -15,66 +15,74 @@ let dep_bindings ~extra_bindings deps =
   | None ->
     base
 
-let user_rule sctx ?extra_bindings ~dir ~expander (rule : Rule.t) =
-  if Expander.eval_blang expander rule.enabled_if then
-    let targets : Expander.Targets.t =
-      match rule.targets with
-      | Infer ->
-        Infer
-      | Static { targets; multiplicity } ->
-        let not_in_dir ~error_loc s =
+let setup_user_rule sctx ?extra_bindings ~dir ~expander (rule : Rule.t) =
+  let targets : Expander.Targets.t =
+    match rule.targets with
+    | Infer ->
+      Infer
+    | Static { targets; multiplicity } ->
+      let not_in_dir ~error_loc s =
+        User_error.raise ~loc:error_loc
+          [ Pp.textf "%s does not denote a file in the current directory" s ]
+      in
+      let check_filename ~error_loc fn =
+        match fn with
+        | Value.String ("." | "..") ->
           User_error.raise ~loc:error_loc
-            [ Pp.textf "%s does not denote a file in the current directory" s ]
-        in
-        let check_filename ~error_loc fn =
-          match fn with
-          | Value.String ("." | "..") ->
-            User_error.raise ~loc:error_loc
-              [ Pp.text "'.' and '..' are not valid filenames" ]
-          | String s ->
-            if Filename.dirname s <> Filename.current_dir_name then
-              not_in_dir ~error_loc s;
-            Path.Build.relative ~error_loc dir s
-          | Path p ->
-            if
-              Option.compare Path.compare (Path.parent p)
-                (Some (Path.build dir))
-              <> Eq
-            then
-              not_in_dir ~error_loc (Path.to_string p);
-            Path.as_in_build_dir_exn p
-          | Dir p ->
-            not_in_dir ~error_loc (Path.to_string p)
-        in
-        let targets =
-          List.concat_map targets ~f:(fun target ->
-            let error_loc = String_with_vars.loc target in
-            match multiplicity with
-            | One ->
-              let res =
-                Expander.expand expander ~mode:Single ~template:target
-              in
-              [ check_filename ~error_loc res ]
-            | Multiple ->
-              Expander.expand expander ~mode:Many ~template:target
-              |> List.map ~f:(check_filename ~error_loc))
-        in
-        Expander.Targets.Static { multiplicity; targets }
-    in
+            [ Pp.text "'.' and '..' are not valid filenames" ]
+        | String s ->
+          if Filename.dirname s <> Filename.current_dir_name then
+            not_in_dir ~error_loc s;
+          Path.Build.relative ~error_loc dir s
+        | Path p ->
+          if
+            Option.compare Path.compare (Path.parent p) (Some (Path.build dir))
+            <> Eq
+          then
+            not_in_dir ~error_loc (Path.to_string p);
+          Path.as_in_build_dir_exn p
+        | Dir p ->
+          not_in_dir ~error_loc (Path.to_string p)
+      in
+      let targets =
+        List.concat_map targets ~f:(fun target ->
+          let error_loc = String_with_vars.loc target in
+          match multiplicity with
+          | One ->
+            let res = Expander.expand expander ~mode:Single ~template:target in
+            [ check_filename ~error_loc res ]
+          | Multiple ->
+            Expander.expand expander ~mode:Many ~template:target
+            |> List.map ~f:(check_filename ~error_loc))
+      in
+      Expander.Targets.Static { multiplicity; targets }
+  in
+  let bindings = dep_bindings ~extra_bindings rule.deps in
+  let expander = Expander.add_bindings expander ~bindings in
+  SC.Deps.interpret_named sctx ~expander rule.deps
+  >>> SC.Action.run sctx (snd rule.action) ~loc:(fst rule.action) ~expander
+    ~dep_kind:Required ~targets ~targets_dir:dir
+
+let targets sctx ?extra_bindings ~dir ~expander (rule : Rule.t) =
+  if Expander.eval_blang expander rule.enabled_if then
     let bindings = dep_bindings ~extra_bindings rule.deps in
     let expander = Expander.add_bindings expander ~bindings in
-    SC.add_rule_get_targets
+    Build.targets (setup_user_rule sctx ?extra_bindings ~dir ~expander rule)
+  else
+    Path.Build.Set.empty
+
+let user_rule sctx ?extra_bindings ~dir ~expander (rule : Rule.t) =
+  if Expander.eval_blang expander rule.enabled_if then
+    let bindings = dep_bindings ~extra_bindings rule.deps in
+    let expander = Expander.add_bindings expander ~bindings in
+    SC.add_rule
       sctx
       (* user rules may have extra requirements, in which case they will be
         specified as a part of rule.deps, which will be correctly taken care of
          by the build arrow *) ~sandbox:Sandbox_config.no_special_requirements
       ~dir ~mode:rule.mode ~loc:rule.loc
       ~locks:(interpret_locks ~expander rule.locks)
-      ( SC.Deps.interpret_named sctx ~expander rule.deps
-      >>> SC.Action.run sctx (snd rule.action) ~loc:(fst rule.action) ~expander
-        ~dep_kind:Required ~targets ~targets_dir:dir )
-  else
-    Path.Build.Set.empty
+      (setup_user_rule sctx ?extra_bindings ~dir ~expander rule)
 
 let copy_files sctx ~dir ~expander ~src_dir (def : Copy_files.t) =
   let loc = String_with_vars.loc def.glob in
