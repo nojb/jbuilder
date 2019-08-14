@@ -196,11 +196,11 @@ let make ~scope ~(context : Context.t) ~lib_artifacts ~bin_artifacts_host =
            Some (static (expand_version scope var s))
          | Var Project_root ->
            Some (static [ Value.Dir (Path.build (Scope.root scope)) ])
-         | Macro (Artifact a, s) -> (
+         | Macro (Artifact a, s) ->
            let loc = String_with_vars.Var.loc var in
            let open Option.O in
            let+ v = expand_artifact ~dir ~loc t a s in
-           match v with Ok v -> static v | Error msg -> Error msg )
+           Result.bind v ~f:static
          | expansion ->
            Some (Ok (Dynamic expansion)))
   in
