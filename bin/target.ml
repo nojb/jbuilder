@@ -115,6 +115,18 @@ let expand_path common ~(setup : Dune.Main.build_system) ctx sv =
       (String.concat ~sep:Filename.dir_sep (Common.root common).to_cwd)
   in
   let expander = Dune.Super_context.expander sctx ~dir in
+  let lookup_module ~dir name =
+    Dune.Dir_contents.Dir_artifacts.lookup_module
+      (Dune.Dir_contents.artifacts (Dune.Dir_contents.get sctx ~dir))
+      name
+  in
+  let lookup_library ~dir name =
+    Dune.Dir_contents.Dir_artifacts.lookup_library
+      (Dune.Dir_contents.artifacts (Dune.Dir_contents.get sctx ~dir))
+      name
+  in
+  let expander = Dune.Expander.set_lookup_module expander ~lookup_module in
+  let expander = Dune.Expander.set_lookup_library expander ~lookup_library in
   Path.relative Path.root
     (Common.prefix_target common (Dune.Expander.expand_str expander sv))
 

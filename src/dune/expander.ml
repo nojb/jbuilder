@@ -18,6 +18,13 @@ type t =
   ; c_compiler : string
   ; expand_var :
     t -> (expanded, User_message.t) Result.t option String_with_vars.expander
+  ; lookup_module :
+    (   dir:Path.Build.t
+     -> Module_name.t
+     -> Path.Build.t Obj_dir.Module.Single.t option)
+    option
+  ; lookup_library :
+    (dir:Path.Build.t -> Lib_name.t -> Dune_file.Library.t option) option
   }
 
 let scope t = t.scope
@@ -57,6 +64,12 @@ let set_dir t ~dir = { t with dir }
 let set_scope t ~scope = { t with scope }
 
 let set_bin_artifacts t ~bin_artifacts_host = { t with bin_artifacts_host }
+
+let set_lookup_module t ~lookup_module =
+  { t with lookup_module = Some lookup_module }
+
+let set_lookup_library t ~lookup_library =
+  { t with lookup_library = Some lookup_library }
 
 let extend_env t ~env =
   { t with
@@ -118,6 +131,44 @@ let expand_var_exn t var syn =
              (String_with_vars.Var.describe var)
            ])
 
+let expand_artifact ~dir ~loc t a s =
+  let path = Path.Build.relative dir s in
+  let name = Path.Build.basename path in
+  let dir = Path.Build.parent_exn path in
+  let open Option.O in
+  match a with
+  | Pform.Artifact.Mod kind -> (
+    let+ lookup_module = t.lookup_module in
+    let name = Module_name.of_string name in
+    match lookup_module ~dir name with
+    | None ->
+      let msg =
+        User_error.make ~loc
+          [ Pp.textf "Module %s does not exist." (Module_name.to_string name) ]
+      in
+      Result.Error msg
+    | Some t -> (
+      match Obj_dir.Module.Single.cm_file t ~kind with
+      | None ->
+        Ok [ Value.String "" ]
+      | Some path ->
+        Ok [ Value.Path (Path.build path) ] ) )
+  | Lib mode -> (
+    let+ lookup_library = t.lookup_library in
+    let name = Lib_name.of_string_exn ~loc:(Some loc) name in
+    match lookup_library ~dir name with
+    | None ->
+      let msg =
+        User_error.make ~loc
+          [ Pp.textf "Library %s does not exist." (Lib_name.to_string name) ]
+      in
+      Result.Error msg
+    | Some lib ->
+      let archive =
+        Dune_file.Library.archive lib ~dir ~ext:(Mode.compiled_lib_ext mode)
+      in
+      Ok [ Value.Path (Path.build archive) ] )
+
 let make ~scope ~(context : Context.t) ~lib_artifacts ~bin_artifacts_host =
   let expand_var
     ( { bindings
@@ -125,11 +176,13 @@ let make ~scope ~(context : Context.t) ~lib_artifacts ~bin_artifacts_host =
       ; env = _
       ; scope
       ; hidden_env = _
-      ; dir = _
+      ; dir
       ; bin_artifacts_host = _
       ; expand_var = _
       ; lib_artifacts = _
       ; c_compiler = _
+      ; lookup_module = _
+      ; lookup_library = _
       } as t ) var syntax_version =
     Pform.Map.expand bindings var syntax_version
     |> Option.bind ~f:(function
@@ -143,6 +196,11 @@ let make ~scope ~(context : Context.t) ~lib_artifacts ~bin_artifacts_host =
            Some (static (expand_version scope var s))
          | Var Project_root ->
            Some (static [ Value.Dir (Path.build (Scope.root scope)) ])
+         | Macro (Artifact a, s) -> (
+           let loc = String_with_vars.Var.loc var in
+           let open Option.O in
+           let+ v = expand_artifact ~dir ~loc t a s in
+           match v with Ok v -> static v | Error msg -> Error msg )
          | expansion ->
            Some (Ok (Dynamic expansion)))
   in
@@ -161,6 +219,8 @@ let make ~scope ~(context : Context.t) ~lib_artifacts ~bin_artifacts_host =
   ; bin_artifacts_host
   ; expand_var
   ; c_compiler
+  ; lookup_module = None
+  ; lookup_library = None
   }
 
 let expand t ~mode ~template =
@@ -271,6 +331,10 @@ let resolve_binary t ~loc ~prog =
   | Error e ->
     Error { Import.fail = (fun () -> Action.Prog.Not_found.raise e) }
 
+let cannot_be_used_here pform =
+  Pp.textf "%s cannot be used in this position"
+    (String_with_vars.Var.describe pform)
+
 let expand_and_record acc ~map_exe ~dep_kind ~expansion_kind
   ~(dir : Path.Build.t) ~pform t expansion
     ~(cc : dir:Path.Build.t -> (unit, Value.t list) Build.t C.Kind.Dict.t) =
@@ -280,11 +344,7 @@ let expand_and_record acc ~map_exe ~dep_kind ~expansion_kind
   let add_ddep =
     match expansion_kind with
     | Static ->
-      fun _ ->
-        User_error.raise ~loc
-          [ Pp.textf "%s cannot be used in this position"
-            (String_with_vars.Var.describe pform)
-          ]
+      fun _ -> User_error.raise ~loc [ cannot_be_used_here pform ]
     | Dynamic ->
       Resolved_forms.add_ddep acc ~key
   in
@@ -304,6 +364,18 @@ let expand_and_record acc ~map_exe ~dep_kind ~expansion_kind
     add_ddep (cc ~dir).c
   | Var Cxx ->
     add_ddep (cc ~dir).cxx
+  | Macro (Artifact a, s) -> (
+    match expand_artifact ~dir ~loc t a s with
+    | Some (Ok v) ->
+      Some v
+    | Some (Error msg) ->
+      Resolved_forms.add_fail acc
+        { fail = (fun () -> raise (User_error.E msg)) }
+    | None ->
+      Resolved_forms.add_fail acc
+        { fail =
+          (fun () -> User_error.raise ~loc [ cannot_be_used_here pform ])
+        } )
   | Macro (Path_no_dep, s) ->
     Some [ Value.Dir (relative dir s) ]
   | Macro (Exe, s) ->
