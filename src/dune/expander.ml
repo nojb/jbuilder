@@ -21,7 +21,7 @@ type t =
   ; lookup_module :
     (   dir:Path.Build.t
      -> Module_name.t
-     -> Path.Build.t Obj_dir.Module.Single.t option)
+     -> (Path.Build.t Obj_dir.t * Module.t) option)
     option
   ; lookup_library :
     (dir:Path.Build.t -> Lib_name.t -> Dune_file.Library.t option) option
@@ -147,8 +147,8 @@ let expand_artifact ~dir ~loc t a s =
           [ Pp.textf "Module %s does not exist." (Module_name.to_string name) ]
       in
       Result.Error msg
-    | Some t -> (
-      match Obj_dir.Module.Single.cm_file t ~kind with
+    | Some (t, m) -> (
+      match Obj_dir.Module.cm_file t m ~kind with
       | None ->
         Ok [ Value.String "" ]
       | Some path ->

@@ -39,7 +39,7 @@ val set_lookup_module :
   -> lookup_module:
     (   dir:Path.Build.t
      -> Module_name.t
-     -> Path.Build.t Obj_dir.Module.Single.t option)
+     -> (Path.Build.t Obj_dir.t * Module.t) option)
   -> t
 
 val set_lookup_library :
