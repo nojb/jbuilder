@@ -60,3 +60,19 @@
 (alias
  (name t10)
  (deps %{cma:c1}))
+
+(rule (with-stdout-to x1.ml (progn)))
+(rule (with-stdout-to x2.ml (progn)))
+(rule (with-stdout-to x3.ml (progn)))
+
+(library
+ (name plugin)
+ (modules x1 x2))
+
+(library
+ (name dummy)
+ (modules x3))
+
+(rule
+ (targets my.cmxs)
+ (action (run %{ocamlopt} -shared -o %{targets} %{cmxa:plugin} %{cmx:x3})))

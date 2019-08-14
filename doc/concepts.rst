@@ -197,6 +197,8 @@ In addition, ``(action ...)`` fields support the following special variables:
   file
 - ``read-strings:<path>`` expands to the list of lines in the given
   file, unescaped using OCaml lexical convention
+- ``%{<ext>:<path>}`` where ``<ext>`` is one of ``cmo``, ``cmi``, ``cma``,
+  ``cmx``, or ``cmxa``. See :ref:`variables-for-artifacts`.
 
 The ``%{<kind>:...}`` forms are what allows you to write custom rules that work
 transparently whether things are installed or not.

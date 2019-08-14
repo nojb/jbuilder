@@ -202,3 +202,32 @@ context (ie ``_build/<context>``).
 
 These variables can also be used in the command line to quickly build a specific
 artifact: ``dune build '%{<kind>:<path>}'``.
+
+Building an ad-hoc ``.cmxs``
+----------------------------
+
+In the model exposed by ``dune``, a ``.cmxs`` target is created for each
+library.  However, the ``.cmxs`` format itself is more flexible than that and is
+capable to containing arbitrary ``.cmxa`` and ``.cmx`` files.
+
+For the specific cases where this extra flexibility is needed, one can use
+:ref:`variables-for-artifacts` to write explicit rules to build ``.cmxs`` files
+not associated to any library.
+
+Below is an example where we build ``my.cmxs`` containing ``foo.cmxa`` and
+``d.cmx``. Note how we use a :ref:`library` stanza to set up the compilation of
+``d.cmx``.
+
+.. code:: scheme
+
+    (library
+     (name foo)
+     (modules a b c))
+
+    (library
+     (name dummy)
+     (modules d))
+
+    (rule
+     (targets my.cmxs)
+     (action (run %{ocamlopt} -shared -o %{targets} %{cmxa:foo} %{cmx:d})))

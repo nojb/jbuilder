@@ -205,3 +205,19 @@ subdirectory.
         ocamlc .bar.objs/byte/bar.{cmi,cmo,cmt}
         ocamlc .bar.objs/byte/bar__X.{cmi,cmo,cmt}
       ocamlopt .bar.objs/native/bar__X.{cmx,o}
+
+  $ dune build --display short _build/default/my.cmxs
+      ocamldep .dummy.objs/x3.ml.d
+        ocamlc .dummy.objs/byte/dummy.{cmi,cmo,cmt}
+        ocamlc .dummy.objs/byte/dummy__X3.{cmi,cmo,cmt}
+      ocamlopt .dummy.objs/native/dummy__X3.{cmx,o}
+        ocamlc .plugin.objs/byte/plugin.{cmi,cmo,cmt}
+      ocamlopt .plugin.objs/native/plugin.{cmx,o}
+      ocamldep .plugin.objs/x1.ml.d
+        ocamlc .plugin.objs/byte/plugin__X1.{cmi,cmo,cmt}
+      ocamlopt .plugin.objs/native/plugin__X1.{cmx,o}
+      ocamldep .plugin.objs/x2.ml.d
+        ocamlc .plugin.objs/byte/plugin__X2.{cmi,cmo,cmt}
+      ocamlopt .plugin.objs/native/plugin__X2.{cmx,o}
+      ocamlopt plugin.{a,cmxa}
+      ocamlopt my.cmxs
