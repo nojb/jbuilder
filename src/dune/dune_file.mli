@@ -219,6 +219,7 @@ module Library : sig
     ; stdlib : Ocaml_stdlib.t option
     ; special_builtin_support : Lib_info.Special_builtin_support.t option
     ; enabled_if : Blang.t
+    ; package : (Loc.t * Package.t) option
     }
 
   val has_stubs : t -> bool

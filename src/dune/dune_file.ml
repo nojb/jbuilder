@@ -837,6 +837,7 @@ module Library = struct
     ; stdlib : Ocaml_stdlib.t option
     ; special_builtin_support : Lib_info.Special_builtin_support.t option
     ; enabled_if : Blang.t
+    ; package : (Loc.t * Package.t) option
     }
 
   let decode =
@@ -844,7 +845,7 @@ module Library = struct
       (let+ buildable = Buildable.decode ~since_c:None ~allow_re_export:true
        and+ loc = loc
        and+ name = field_o "name" Lib_name.Local.decode_loc
-       and+ public = Public_lib.public_name_field
+       and+ public_name = field_o "public_name" (located Lib_name.decode)
        and+ synopsis = field_o "synopsis" string
        and+ install_c_headers =
          field "install_c_headers" (repeat string) ~default:[]
@@ -901,7 +902,33 @@ module Library = struct
          field_o "special_builtin_support"
            ( Dune_lang.Syntax.since Stanza.syntax (1, 10)
            >>> Lib_info.Special_builtin_support.decode )
-       and+ enabled_if = enabled_if ~since:(Some (1, 10)) in
+       and+ enabled_if = enabled_if ~since:(Some (1, 10))
+       and+ package =
+         field_o "package"
+           (Dune_lang.Syntax.since Stanza.syntax (2, 0) >>> located Pkg.decode)
+       in
+       let public =
+         match public_name with
+         | None -> None
+         | Some x ->
+           begin match Result.to_option (Public_lib.make project x) with
+           | None ->
+             begin match package with
+             | Some (_, pkg) ->
+               Result.map (Pkg.resolve project pkg) ~f:(fun pkg ->
+                 { package = pkg
+                 ; sub_dir =
+                     ( if rest = [] then
+                         None
+                       else
+                         Some (String.concat rest ~sep:"/") )
+                 ; name = loc_name
+                 })
+             | None -> None
+             end
+           | Some _ as x -> x
+           end
+       in
        let wrapped =
          Wrapped.make ~wrapped ~implements ~special_builtin_support
        in
@@ -1026,6 +1053,7 @@ module Library = struct
            ; stdlib
            ; special_builtin_support
            ; enabled_if
+           ; package
            } ))
 
   let has_stubs t =
