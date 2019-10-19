@@ -364,6 +364,7 @@ module Rule : sig
 
   type t =
     { targets : Targets.t
+    ; alias : Alias.Name.t
     ; deps : Dep_conf.t Bindings.t
     ; action : Loc.t * Action_dune_lang.t
     ; mode : Mode.t

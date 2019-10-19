@@ -50,6 +50,7 @@ let rules (t : Dune_file.Tests.t) ~sctx ~dir ~scope ~expander ~dir_contents =
       | `Expect diff ->
         let rule =
           { Dune_file.Rule.targets = Infer
+          ; alias = Alias.Name.runtest
           ; deps = Bindings.empty
           ; action =
               ( loc

@@ -1701,6 +1701,7 @@ module Rule = struct
 
   type t =
     { targets : Targets.t
+    ; alias : Alias.Name.t
     ; deps : Dep_conf.t Bindings.t
     ; action : Loc.t * Action_dune_lang.t
     ; mode : Mode.t
@@ -1748,6 +1749,7 @@ module Rule = struct
   let short_form =
     let+ loc, action = located Action_dune_lang.decode in
     { targets = Infer
+    ; alias = Alias.Name.all
     ; deps = Bindings.empty
     ; action = (loc, action)
     ; mode = Standard
@@ -1760,6 +1762,9 @@ module Rule = struct
     let+ loc = loc
     and+ action = field "action" (located Action_dune_lang.decode)
     and+ targets = Targets.fields_parser
+    and+ alias =
+      field "alias" ~default:Alias.Name.all
+        (Dune_lang.Syntax.since Stanza.syntax (2, 0) >>> Alias.Name.decode)
     and+ deps =
       field "deps" (Bindings.decode Dep_conf.decode) ~default:Bindings.empty
     and+ locks = field "locks" (repeat String_with_vars.decode) ~default:[]
@@ -1789,7 +1794,7 @@ module Rule = struct
           | true, None -> Ok Fallback
           | false, None -> Ok Standard)
     and+ enabled_if = enabled_if ~since:(Some (1, 4)) in
-    { targets; deps; action; mode; locks; loc; enabled_if }
+    { targets; alias; deps; action; mode; locks; loc; enabled_if }
 
   let dune_syntax =
     peek_exn
@@ -1846,6 +1851,7 @@ module Rule = struct
                where [multiplicity = One] is not supported. *)
             Static
               { targets = [ S.make_text loc dst ]; multiplicity = Multiple }
+        ; alias = Alias.Name.all
         ; deps = Bindings.singleton (Dep_conf.File (S.virt_text __POS__ src))
         ; action =
             ( loc
@@ -1874,6 +1880,7 @@ module Rule = struct
                   List.map ~f:(S.make_text loc) [ name ^ ".ml"; name ^ ".mli" ]
               ; multiplicity = Multiple
               }
+        ; alias = Alias.Name.all
         ; deps = Bindings.singleton (Dep_conf.File (S.virt_text __POS__ src))
         ; action =
             ( loc
