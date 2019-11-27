@@ -11,6 +11,11 @@
 - Add `--mandir` option to `$ dune install`. This option allows to override the
   installation directory for man pages. (#2915, fixes #2670, @rgrinberg)
 
+- Add `dune printenv --show-{cdup,prefix,toplevel}` to print (respectively):
+  sequence of `../` to reach the workspace root, the current working directory
+  relative to the workspace root and the absolute path to the workspace root.
+  (#????, fixes #2925, @nojb)
+
 2.0.0 (20/11/2019)
 ------------------
 
