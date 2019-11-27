@@ -24,9 +24,21 @@ let pp ppf sexps =
 
 let term =
   let+ common = Common.term
-  and+ dir = Arg.(value & pos 0 dir "" & info [] ~docv:"PATH") in
-  Common.set_common common ~targets:[];
-  Scheduler.go ~common (fun () ->
+  and+ dir = Arg.(value & pos 0 dir "" & info [] ~docv:"PATH")
+  and+ show_cdup = Arg.(value & flag & info ["show-cdup"])
+  and+ show_prefix = Arg.(value & flag & info ["show-prefix"])
+  and+ show_toplevel = Arg.(value & flag & info ["show-toplevel"]) in
+  let root = Common.root common in
+  if show_cdup then
+    print_endline (String.concat ~sep:"/" (List.map (fun _ -> Filename.parent_dir_name) root.Workspace_root.to_cwd @ [""]));
+  if show_prefix then
+    print_endline (String.concat ~sep:"/" (root.Workspace_root.to_cwd @ [""]));
+  if show_toplevel then
+    print_endline root.Workspace_root.dir;
+  let handled = show_cdup || show_prefix || show_toplevel in
+  if not handled || dir <> "" then begin
+    Common.set_common common ~targets:[];
+    Scheduler.go ~common (fun () ->
       let open Fiber.O in
       let* setup = Import.Main.setup common in
       let dir = Path.of_string dir in
@@ -34,31 +46,32 @@ let term =
       let request =
         Build.all
           ( match checked with
-          | In_build_dir (ctx, _) ->
-            let sctx =
-              Dune.Context_name.Map.find_exn setup.scontexts ctx.name
-            in
-            [ dump sctx ~dir:(Path.as_in_build_dir_exn dir) ]
-          | In_source_dir dir ->
-            Dune.Context_name.Map.values setup.scontexts
-            |> List.map ~f:(fun sctx ->
-                   let dir =
-                     Path.Build.append_source (Super_context.build_dir sctx) dir
-                   in
-                   dump sctx ~dir)
-          | External _ ->
-            User_error.raise
-              [ Pp.text "Environment is not defined for external paths" ]
-          | In_install_dir _ ->
-            User_error.raise
-              [ Pp.text "Environment is not defined in install dirs" ] )
+            | In_build_dir (ctx, _) ->
+              let sctx =
+                Dune.Context_name.Map.find_exn setup.scontexts ctx.name
+              in
+              [ dump sctx ~dir:(Path.as_in_build_dir_exn dir) ]
+            | In_source_dir dir ->
+              Dune.Context_name.Map.values setup.scontexts
+              |> List.map ~f:(fun sctx ->
+                let dir =
+                  Path.Build.append_source (Super_context.build_dir sctx) dir
+                in
+                dump sctx ~dir)
+            | External _ ->
+              User_error.raise
+                [ Pp.text "Environment is not defined for external paths" ]
+            | In_install_dir _ ->
+              User_error.raise
+                [ Pp.text "Environment is not defined in install dirs" ] )
       in
       Build_system.do_build ~request >>| function
       | [ (_, env) ] -> Format.printf "%a" pp env
       | l ->
         List.iter l ~f:(fun (name, env) ->
-            Format.printf "@[<v2>Environment for context %s:@,%a@]@."
-              (Dune.Context_name.to_string name)
-              pp env))
+          Format.printf "@[<v2>Environment for context %s:@,%a@]@."
+            (Dune.Context_name.to_string name)
+            pp env))
+  end
 
 let command = (term, info)
