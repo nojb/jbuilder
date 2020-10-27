@@ -75,21 +75,15 @@ module Crawl = struct
     | Ok libs ->
       let include_dirs = Obj_dir.all_cmis obj_dir in
       Some
-        (Dyn.Variant
-           ( "executables"
-           , [ Dyn.Encoder.record
-                 [ ( "names"
-                   , List
-                       (List.map
-                          ~f:(fun (_, name) -> Dyn.String name)
-                          exes.names) )
-                 ; ( "requires"
-                   , Dyn.Encoder.(list string) (List.map ~f:uid_of_library libs)
-                   )
-                 ; ("modules", List modules_)
-                 ; ("include_dirs", Dyn.Encoder.list dyn_path include_dirs)
-                 ]
-             ] ))
+        (Dyn.Encoder.record
+           [ ( "names"
+             , List (List.map ~f:(fun (_, name) -> Dyn.String name) exes.names)
+             )
+           ; ( "requires"
+             , Dyn.Encoder.(list string) (List.map ~f:uid_of_library libs) )
+           ; ("modules", List modules_)
+           ; ("include_dirs", Dyn.Encoder.list dyn_path include_dirs)
+           ])
 
   let library sctx lib =
     match Lib.requires lib with
@@ -111,19 +105,15 @@ module Crawl = struct
       let include_dirs = Obj_dir.all_cmis obj_dir in
       Some
         (let open Dyn.Encoder in
-        Dyn.Variant
-          ( "library"
-          , [ Dyn.Encoder.record
-                [ ("name", Lib_name.to_dyn name)
-                ; ("uid", String (uid_of_library lib))
-                ; ("local", Bool (Lib.is_local lib))
-                ; ( "requires"
-                  , (list string) (List.map requires ~f:uid_of_library) )
-                ; ("source_dir", dyn_path src_dir)
-                ; ("modules", List modules_)
-                ; ("include_dirs", (list dyn_path) include_dirs)
-                ]
-            ] ))
+        record
+          [ ("name", Lib_name.to_dyn name)
+          ; ("uid", String (uid_of_library lib))
+          ; ("local", Bool (Lib.is_local lib))
+          ; ("requires", (list string) (List.map requires ~f:uid_of_library))
+          ; ("source_dir", dyn_path src_dir)
+          ; ("modules", List modules_)
+          ; ("include_dirs", (list dyn_path) include_dirs)
+          ])
 
   let workspace { Dune_rules.Main.workspace; scontexts } (context : Context.t) =
     let sctx = Context_name.Map.find_exn scontexts context.name in
@@ -145,8 +135,8 @@ module Crawl = struct
     let+ dune_files =
       Dune_load.Dune_files.eval workspace.conf.dune_files ~context
     in
-    let exes_and_libs =
-      Dune_load.Dune_file.fold_stanzas dune_files ~init:libs
+    let exes =
+      Dune_load.Dune_file.fold_stanzas dune_files ~init:[]
         ~f:(fun dune_file stanza accu ->
           let dir = Path.Build.append_source context.build_dir dune_file.dir in
           match stanza with
@@ -156,7 +146,12 @@ module Crawl = struct
             | Some exes -> exes :: accu )
           | _ -> accu)
     in
-    Dyn.List exes_and_libs
+    Dyn.Encoder.record
+      [ ("workspace_root", Dyn.String (Path.to_absolute_filename Path.root))
+      ; ("build_dir", Dyn.String (Path.Build.to_string context.build_dir))
+      ; ("libraries", Dyn.List libs)
+      ; ("executables", Dyn.List exes)
+      ]
 end
 
 module Opam_files = struct
