@@ -110,7 +110,7 @@ module Crawl = struct
           ; ("uid", String (uid_of_library lib))
           ; ("local", Bool (Lib.is_local lib))
           ; ("requires", (list string) (List.map requires ~f:uid_of_library))
-          ; ("source_dir", dyn_path src_dir)
+          ; ("build_dir", dyn_path src_dir)
           ; ("modules", List modules_)
           ; ("include_dirs", (list dyn_path) include_dirs)
           ])
