@@ -751,7 +751,7 @@ let maybe_clear_screen ~config =
   with
   | Clear_on_rebuild -> Console.reset ()
   | Preserve ->
-    Console.print_user_message
+    Console.prerr_user_message
       (User_message.make
          [ Pp.nop
          ; Pp.tag User_message.Style.Success

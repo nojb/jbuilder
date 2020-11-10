@@ -657,7 +657,7 @@ let upgrade () =
     let v1_updates = ref false in
     let v2_updates = ref false in
     let log_update dir ver =
-      Console.print
+      Console.prerr
         [ Pp.textf "Project in dir %s will be upgraded to dune %s." dir ver ]
     in
     List.iter current_versions ~f:(fun (dir, version) ->
@@ -673,12 +673,12 @@ let upgrade () =
           V2.upgrade todo dir
         | Dune2_project -> ());
     List.iter todo.to_edit ~f:(fun (fn, s) ->
-        Console.print
+        Console.prerr
           [ Pp.textf "Upgrading %s..." (Path.Source.to_string_maybe_quoted fn) ];
         Io.write_file (Path.source fn) s ~binary:true);
     List.iter todo.to_rename_and_edit ~f:(fun x ->
         let { original_file; new_file; extra_files_to_delete; contents } = x in
-        Console.print
+        Console.prerr
           [ Pp.textf "Upgrading %s to %s..."
               ( List.map
                   (extra_files_to_delete @ [ original_file ])
@@ -696,7 +696,7 @@ let upgrade () =
       Memo.reset ();
       aux true
     ) else if !v2_updates then
-      Console.print
+      Console.prerr
         [ Pp.textf
             "\n\
              Some projects were upgraded to dune v2. Some breaking changes may \

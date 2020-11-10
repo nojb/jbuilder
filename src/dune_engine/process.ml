@@ -369,7 +369,7 @@ module Exit_status = struct
     match t with
     | Ok n ->
       Option.iter output ~f:(fun output ->
-          Console.print_user_message
+          Console.prerr_user_message
             (User_message.make
                [ Pp.tag User_message.Style.Kwd (Pp.verbatim "Output")
                  ++ pp_id id ++ Pp.char ':'
@@ -434,7 +434,7 @@ module Exit_status = struct
         Option.is_some output
         || (display = Config.Display.Short && purpose <> Internal_job)
       then
-        Console.print_user_message
+        Console.prerr_user_message
           (User_message.make
              ( if show_command then
                progname_and_purpose Ok :: Option.to_list output
@@ -487,7 +487,7 @@ let run_internal ?dir ?(stdout_to = Io.stdout) ?(stderr_to = Io.stderr)
             Fancy.command_line ~prog:prog_str ~args ~dir ~stdout_to ~stderr_to
               ~stdin_from
           in
-          Console.print_user_message
+          Console.prerr_user_message
             (User_message.make
                [ Pp.tag User_message.Style.Kwd (Pp.verbatim "Running")
                  ++ pp_id id ++ Pp.verbatim ": " ++ cmdline

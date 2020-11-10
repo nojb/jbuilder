@@ -8,7 +8,7 @@
 module Backend : sig
   module type S = sig
     (** Format and print a user message to the console *)
-    val print_user_message : User_message.t -> unit
+    val prerr_user_message : User_message.t -> unit
 
     (** Change the status line *)
     val set_status_line : User_message.Style.t Pp.t option -> unit
@@ -36,10 +36,10 @@ end
 (** The main backend for the application *)
 include Backend.S
 
-(** [print paragraphs] is a short-hand for:
+(** [prerr paragraphs] is a short-hand for:
 
-    {[ print_user_message (User_message.make paragraphs) ]} *)
-val print : User_message.Style.t Pp.t list -> unit
+    {[ prerr (User_message.make paragraphs) ]} *)
+val prerr : User_message.Style.t Pp.t list -> unit
 
 module Status_line : sig
   (** This module allows to buffer status updates so that they don't slow down

@@ -1,6 +1,6 @@
 module Backend = struct
   module type S = sig
-    val print_user_message : User_message.t -> unit
+    val prerr_user_message : User_message.t -> unit
 
     val set_status_line : User_message.Style.t Pp.t option -> unit
 
@@ -10,7 +10,7 @@ module Backend = struct
   type t = (module S)
 
   module Dumb_no_flush : S = struct
-    let print_user_message msg =
+    let prerr_user_message msg =
       Option.iter msg.User_message.loc ~f:(fun loc ->
           Loc.render Format.err_formatter (Loc.pp loc));
       User_message.prerr { msg with loc = None }
@@ -23,8 +23,8 @@ module Backend = struct
   module Dumb : S = struct
     include Dumb_no_flush
 
-    let print_user_message msg =
-      print_user_message msg;
+    let prerr_user_message msg =
+      prerr_user_message msg;
       flush stderr
 
     let reset () =
@@ -58,9 +58,9 @@ module Backend = struct
         show_status_line ();
         flush stderr
 
-    let print_user_message msg =
+    let prerr_user_message msg =
       hide_status_line ();
-      Dumb_no_flush.print_user_message msg;
+      Dumb_no_flush.prerr_user_message msg;
       show_status_line ();
       flush stderr
 
@@ -77,9 +77,9 @@ module Backend = struct
 
   let compose (module A : S) (module B : S) =
     ( module struct
-      let print_user_message msg =
-        A.print_user_message msg;
-        B.print_user_message msg
+      let prerr_user_message msg =
+        A.prerr_user_message msg;
+        B.prerr_user_message msg
 
       let set_status_line x =
         A.set_status_line x;
@@ -91,11 +91,11 @@ module Backend = struct
     end : S )
 end
 
-let print_user_message msg =
+let prerr_user_message msg =
   let (module M : Backend.S) = !Backend.main in
-  M.print_user_message msg
+  M.prerr_user_message msg
 
-let print paragraphs = print_user_message (User_message.make paragraphs)
+let prerr paragraphs = prerr_user_message (User_message.make paragraphs)
 
 let set_status_line line =
   let (module M : Backend.S) = !Backend.main in
@@ -133,4 +133,4 @@ module Status_line = struct
     Exn.protect ~finally:(fun () -> set old) ~f
 end
 
-let () = User_warning.set_reporter print_user_message
+let () = User_warning.set_reporter prerr_user_message

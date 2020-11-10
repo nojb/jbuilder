@@ -109,5 +109,5 @@ let report ?(extra = fun _ -> None) { Exn_with_backtrace.exn; backtrace } =
         | User -> msg
         | Developer -> append msg (i_must_not_crash ())
       in
-      Console.print_user_message msg
+      Console.prerr_user_message msg
     )

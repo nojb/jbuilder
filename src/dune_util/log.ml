@@ -52,7 +52,7 @@ let info_user_message msg =
           | "" -> output_string oc "#\n"
           | s -> Printf.fprintf oc "# %s\n" s);
         flush oc);
-    if !verbose then Console.print_user_message msg
+    if !verbose then Console.prerr_user_message msg
 
 let info paragraphs = info_user_message (User_message.make paragraphs)
 

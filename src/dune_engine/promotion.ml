@@ -41,7 +41,7 @@ module File = struct
   let promote { src; staging; dst } =
     let correction_file = Option.value staging ~default:src in
     let correction_exists = Path.exists (Path.build correction_file) in
-    Console.print
+    Console.prerr
       [ Pp.box ~indent:2
           ( if correction_exists then
             Pp.textf "Promoting %s to %s."

@@ -263,7 +263,7 @@ module Project_file_edit = struct
   open Project_file
 
   let notify_user paragraphs =
-    Console.print_user_message
+    Console.prerr_user_message
       (User_message.make paragraphs
          ~prefix:
            (Pp.seq

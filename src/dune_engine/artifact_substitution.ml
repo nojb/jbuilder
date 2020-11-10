@@ -476,7 +476,7 @@ let copy ~conf ~input_file ~input ~output =
         let* s = eval t ~conf in
         ( if !Clflags.debug_artifact_substitution then
           let open Pp.O in
-          Console.print
+          Console.prerr
             [ Pp.textf "Found placeholder in %s:"
                 (Path.to_string_maybe_quoted input_file)
             ; Pp.enumerate ~f:Fun.id
