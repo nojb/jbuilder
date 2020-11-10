@@ -38,17 +38,32 @@ module File = struct
     let src = snd (Path.Build.split_sandbox_root correction_file) in
     db := { src; staging = Some staging; dst = source_file } :: !db
 
-  let promote { src; staging; dst } =
+  type mode =
+    | Show_correction
+    | Promote
+
+  let promote ~mode { src; staging; dst } =
     let correction_file = Option.value staging ~default:src in
     let correction_exists = Path.exists (Path.build correction_file) in
     Console.print
       [ Pp.box ~indent:2
-          ( if correction_exists then
+          ( if
+            correction_exists
+            &&
+            match mode with
+            | Promote -> true
+            | Show_correction -> false
+          then
             Pp.textf "Promoting %s to %s."
               (Path.to_string_maybe_quoted (Path.build src))
               (Path.Source.to_string_maybe_quoted dst)
           else
-            Pp.textf "Skipping promotion of %s to %s as the %s is missing."
+            let msg =
+              match mode with
+              | Show_correction -> "Can not show correction"
+              | Promote -> "Skipping promotion of"
+            in
+            Pp.textf "%s %s to %s as the %s is missing." msg
               (Path.to_string_maybe_quoted (Path.build src))
               (Path.Source.to_string_maybe_quoted dst)
               ( match staging with
@@ -58,10 +73,14 @@ module File = struct
                   (Path.to_string_maybe_quoted (Path.build staging)) ) )
       ];
     if correction_exists then
-      let chmod perms = perms lor 0o200 in
-      Io.copy_file ~chmod
-        ~src:(Path.build correction_file)
-        ~dst:(Path.source dst) ()
+      match mode with
+      | Promote ->
+        let chmod perms = perms lor 0o200 in
+        Io.copy_file ~chmod
+          ~src:(Path.build correction_file)
+          ~dst:(Path.source dst) ()
+      | Show_correction ->
+        print_string (Io.read_file ~binary:true (Path.build correction_file))
 end
 
 let clear_cache () = File.db := []
@@ -97,7 +116,7 @@ type files_to_promote =
   | All
   | These of Path.Source.t list * (Path.Source.t -> unit)
 
-let do_promote db files_to_promote =
+let do_promote db ~mode files_to_promote =
   let by_targets = group_by_targets db in
   let potential_build_contexts =
     match Path.readdir_unsorted_with_kinds Path.build_dir with
@@ -126,7 +145,7 @@ let do_promote db files_to_promote =
          [do_promote] runs (before or after [invalidate_cached_timestamps]) *)
       List.iter dirs_to_clear_from_cache ~f:(fun dir ->
           Cached_digest.remove (Path.append_source dir dst));
-      File.promote { src; staging; dst };
+      File.promote ~mode { src; staging; dst };
       List.iter others ~f:(fun (path, _staging) ->
           Format.eprintf " -> ignored %s.@."
             (Path.to_string_maybe_quoted (Path.build path)))
@@ -154,14 +173,14 @@ let do_promote db files_to_promote =
 let finalize () =
   let db =
     match !Clflags.promote with
-    | Some Automatically -> do_promote !File.db All
+    | Some Automatically -> do_promote !File.db ~mode:Promote All
     | Some Never
     | None ->
       !File.db
   in
   dump_db db
 
-let promote_files_registered_in_last_run files_to_promote =
+let promote_files_registered_in_last_run ~mode files_to_promote =
   let db = load_db () in
-  let db = do_promote db files_to_promote in
+  let db = do_promote db ~mode files_to_promote in
   dump_db db

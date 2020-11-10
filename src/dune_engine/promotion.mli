@@ -16,6 +16,10 @@ module File : sig
       sandbox, but the sandbox root will be stripped). *)
   val register_dep :
     source_file:Path.Source.t -> correction_file:Path.Build.t -> unit
+
+  type mode =
+    | Show_correction
+    | Promote
 end
 
 (** Promote all registered files if [!Clflags.auto_promote]. Otherwise dump the
@@ -28,4 +32,5 @@ type files_to_promote =
   | All
   | These of Path.Source.t list * (Path.Source.t -> unit)
 
-val promote_files_registered_in_last_run : files_to_promote -> unit
+val promote_files_registered_in_last_run :
+  mode:File.mode -> files_to_promote -> unit
