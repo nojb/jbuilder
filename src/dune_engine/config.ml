@@ -320,7 +320,7 @@ let adapt_display config ~output_is_a_tty =
   let config =
     if config.display = Progress && (not output_is_a_tty) && not inside_emacs
     then
-      { config with display = Quiet }
+      { config with display = Verbose }
     else
       config
   in
