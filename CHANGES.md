@@ -1,3 +1,8 @@
+2.9
+---
+
+- Add support for instrumentation dependencies (#4210, fixes #3983, @nojb)
+
 2.8.5 (28/03/2021)
 ------------------
 
