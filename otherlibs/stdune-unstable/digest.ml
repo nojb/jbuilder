@@ -1,31 +1,31 @@
-type t = int32
+type t = string
 
-module D = Xxhash
-module Set = Int32.Set
-module Map = Int32.Map
+module D = Stdlib.Digest
+module Set = String.Set
+module Map = String.Map
 
 let hash = Hashtbl.hash
 
-let equal = Int32.equal
+let equal = String.equal
 
-let file p = D.file (Path.to_string p)
+let file p = Xxhash.file_md5 (Path.to_string p)
 
-let compare x y = Int32.compare x y
+let compare x y = Ordering.of_int (D.compare x y)
 
-let to_string = Printf.sprintf "%lx"
+let to_string = D.to_hex
 
 let to_dyn s =
   let open Dyn.Encoder in
   constr "digest" [ string (to_string s) ]
 
 let from_hex s =
-  match Scanf.sscanf s "%lx" Fun.id with
-  | Ok s -> Some s
-  | Error _ -> None
+  match D.from_hex s with
+  | s -> Some s
+  | exception Invalid_argument _ -> None
 
 let string = D.string
 
-let to_string_raw s = to_string s
+let to_string_raw s = s
 
 (* We use [No_sharing] to avoid generating different digests for inputs that
    differ only in how they share internal values. Without [No_sharing], if a
@@ -42,7 +42,13 @@ let file_with_stats p (stats : Unix.stats) =
   | _ ->
     (* We follow the digest scheme used by Jenga. *)
     let string_and_bool ~digest_hex ~bool =
-      generic (digest_hex, bool)
+      D.string
+        (digest_hex
+        ^
+        if bool then
+          "\001"
+        else
+          "\000")
     in
     let content_digest = file p in
     let executable = stats.st_perm land 0o100 <> 0 in

@@ -42,3 +42,29 @@ value dune__xxhash_file(value path)
   XXH32_freeState(state);
   CAMLreturn(caml_copy_int32(hash));
 }
+
+#define BUFFER_SIZE 4096
+
+#define CAML_INTERNALS
+
+#include <caml/md5.h>
+
+value dune__xxhash_file_md5(value path)
+{
+  CAMLparam1(path);
+  CAMLlocal1(res);
+  char buffer[BUFFER_SIZE];
+  struct MD5Context ctx;
+  FILE *fd;
+  caml_MD5Init(&ctx);
+  fd = fopen(String_val(path), "rb");
+  while (1) {
+    size_t n = fread(buffer, 1, BUFFER_SIZE, fd);
+    if (n == 0) break;
+    caml_MD5Update(&ctx, (unsigned char *)buffer, n);
+  }
+  fclose(fd);
+  res = caml_alloc_string(16);
+  caml_MD5Final(&Byte_u(res, 0), &ctx);
+  CAMLreturn(res);
+}
