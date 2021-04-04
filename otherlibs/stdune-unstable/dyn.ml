@@ -2,11 +2,13 @@ module Array = Stdlib.ArrayLabels
 module List = Stdlib.ListLabels
 module String = Stdlib.StringLabels
 module Bytes = Stdlib.Bytes
+module Int32 = Stdlib.Int32
 
 type t =
   | Opaque
   | Unit
   | Int of int
+  | Int32 of int32
   | Int64 of int64
   | Bool of bool
   | String of string
@@ -83,6 +85,7 @@ let rec pp =
   | Opaque -> Pp.verbatim "<opaque>"
   | Unit -> Pp.verbatim "()"
   | Int i -> Pp.verbatim (string_of_int i)
+  | Int32 i -> Pp.verbatim (Int32.to_string i)
   | Int64 i -> Pp.verbatim (Int64.to_string i)
   | Bool b -> Pp.verbatim (string_of_bool b)
   | String s -> string_in_ocaml_syntax s
@@ -131,6 +134,8 @@ module Encoder = struct
   let string x = String x
 
   let int x = Int x
+
+  let int32 x = Int32 x
 
   let int64 x = Int64 x
 

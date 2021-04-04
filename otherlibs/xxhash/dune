@@ -1,0 +1,14 @@
+(foreign_library
+ (archive_name xxhash)
+ (language c)
+ (flags :standard -Wall -O3 -msse2)
+ (names xxhash))
+
+(library
+ (name xxhash)
+ (public_name stdune-unstable.xxhash)
+ (modules xxhash)
+ (foreign_stubs
+  (language c)
+  (flags :standard -Wall -O3 -msse2)
+  (names xxhash_stubs)))
