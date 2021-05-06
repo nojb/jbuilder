@@ -18,6 +18,7 @@ val c_test :
      t
   -> ?c_flags:string list (** default: [] *)
   -> ?link_flags:string list (** default: [] *)
+  -> ?compile_only:bool (** default: [false] *)
   -> string
   -> bool
 

@@ -402,7 +402,7 @@ let need_to_compile_and_link_separately t =
   | "msvc" -> true
   | _ -> false
 
-let compile_and_link_c_prog t ?(c_flags = []) ?(link_flags = []) code =
+let compile_and_link_c_prog t ?(c_flags = []) ?(link_flags = []) ?(compile_only = false) code =
   let dir = t.dest_dir ^/ sprintf "c-test-%d" (gen_id t) in
   Unix.mkdir dir 0o777;
   let base = dir ^/ "test" in
@@ -416,9 +416,9 @@ let compile_and_link_c_prog t ?(c_flags = []) ?(link_flags = []) code =
     Process.run_command_ok t ~dir (Process.command_args t.c_compiler args)
   in
   let ok =
-    if need_to_compile_and_link_separately t then
+    if compile_only || need_to_compile_and_link_separately t then
       run_ok (c_flags @ [ "-I"; t.stdlib_dir; "-c"; c_fname ])
-      && run_ok ("-o" :: exe_fname :: obj_fname :: t.c_libraries @ link_flags)
+      && (compile_only || run_ok ("-o" :: exe_fname :: obj_fname :: t.c_libraries @ link_flags))
     else
       run_ok
         (List.concat
@@ -456,8 +456,8 @@ let compile_c_prog t ?(c_flags = []) code =
   else
     Error ()
 
-let c_test t ?c_flags ?link_flags code =
-  match compile_and_link_c_prog t ?c_flags ?link_flags code with
+let c_test t ?c_flags ?link_flags ?compile_only code =
+  match compile_and_link_c_prog t ?c_flags ?link_flags ?compile_only code with
   | Ok _ -> true
   | Error _ -> false
 
