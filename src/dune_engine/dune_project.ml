@@ -832,6 +832,8 @@ let load ~dir ~files ~infer_from_opam_files ~dir_status =
   else
     None
 
+let parsing_context t = t.parsing_context
+
 let set_parsing_context t parser =
   Dune_lang.Decoder.set_many t.parsing_context parser
 

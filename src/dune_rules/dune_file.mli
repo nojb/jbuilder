@@ -448,7 +448,11 @@ module Stanzas : sig
       The syntax [kind] determines whether the expected syntax is the
       depreciated jbuilder syntax or the version of Dune syntax specified by the
       current [project]. *)
-  val parse : file:Path.Source.t -> Dune_project.t -> Dune_lang.Ast.t list -> t
+  val parse :
+       file:Path.Source.t
+    -> Dune_project.t
+    -> Dune_lang.Ast.t list
+    -> t Memo.Build.t
 end
 
 (** A fully evaluated dune file *)
@@ -463,7 +467,7 @@ val parse :
   -> dir:Path.Source.t
   -> file:Path.Source.t
   -> project:Dune_project.t
-  -> t
+  -> t Memo.Build.t
 
 val fold_stanzas :
   t list -> init:'acc -> f:(t -> Stanza.t -> 'acc -> 'acc) -> 'acc

@@ -170,10 +170,9 @@ module Dune_files = struct
                 (Path.Source.to_string_maybe_quoted file)
             ; Pp.textf "Did you forgot to call [Jbuild_plugin.V*.send]?"
             ];
-        Memo.Build.return
-          (Dune_lang.Parser.load (Path.build generated_dune_file) ~mode:Many
-          |> List.rev_append from_parent
-          |> Dune_file.parse ~dir ~file ~project))
+        Dune_lang.Parser.load (Path.build generated_dune_file) ~mode:Many
+        |> List.rev_append from_parent
+        |> Dune_file.parse ~dir ~file ~project)
     >>| fun dynamic -> static @ dynamic
 end
 
@@ -184,14 +183,19 @@ type conf =
   }
 
 let interpret ~dir ~project ~(dune_file : Source_tree.Dune_file.t) =
+  let open Memo.Build.O in
   let file = Source_tree.Dune_file.path dune_file in
   let static =
     Source_tree.Dune_file.get_static_sexp_and_possibly_destroy dune_file
   in
   match Source_tree.Dune_file.kind dune_file with
   | Ocaml_script ->
-    Dune_files.Script { script = { dir; project; file }; from_parent = static }
-  | Plain -> Literal (Dune_file.parse static ~dir ~file ~project)
+    Memo.Build.return
+      (Dune_files.Script
+         { script = { dir; project; file }; from_parent = static })
+  | Plain ->
+    let+ x = Dune_file.parse static ~dir ~file ~project in
+    Dune_files.Literal x
 
 module Projects_and_dune_files =
   Monoid.Product
@@ -209,7 +213,7 @@ module Source_tree_map_reduce =
 
 let load () =
   let open Memo.Build.O in
-  let+ projects, dune_files =
+  let* projects, dune_files =
     let f dir : Projects_and_dune_files.t Memo.Build.t =
       let path = Source_tree.Dir.path dir in
       let project = Source_tree.Dir.project dir in
@@ -243,8 +247,8 @@ let load () =
                       (Path.Source.to_string_maybe_quoted (Package.opam_file b))
                   ])))
   in
-  let dune_files =
-    List.map (Appendable_list.to_list dune_files)
+  let+ dune_files =
+    Memo.Build.sequential_map (Appendable_list.to_list dune_files)
       ~f:(fun (dir, project, dune_file) -> interpret ~dir ~project ~dune_file)
   in
   { dune_files; packages; projects }

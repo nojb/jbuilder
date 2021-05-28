@@ -306,21 +306,23 @@ let decode =
   in
   enter (fields (decode ~allow_ignored_subdirs:true))
 
+module Decoder_build = Dune_lang.Decoder.Make (Memo.Build)
+
 let decode_includes ~context =
-  let open Dune_lang.Decoder in
+  let open Decoder_build in
   let rec subdir ~context ~path ~inside_include =
-    let* dune_version = Dune_lang.Syntax.get_exn Stanza.syntax in
+    let* dune_version = liftM (Dune_lang.Syntax.get_exn Stanza.syntax) in
     let* loc = loc in
     let* name, path =
       plain_string (fun ~loc s ->
-          (Atom (loc, Dune_lang.Atom.of_string s), s :: path))
+          (Dune_lang.Decoder.Atom (loc, Dune_lang.Atom.of_string s), s :: path))
     in
     let+ nodes = fields (decode ~context ~path ~inside_include) in
     let required_version = (2, 7) in
     if inside_include && dune_version < required_version then
       Dune_lang.Syntax.Error.since loc Stanza.syntax required_version
         ~what:"Using a `subdir' stanza within an `include'd file";
-    List
+    Dune_lang.Decoder.List
       (loc, Atom (Loc.none, Dune_lang.Atom.of_string "subdir") :: name :: nodes)
   and decode ~context ~path ~inside_include =
     let* includes =
@@ -343,7 +345,9 @@ let decode_includes ~context =
   enter (fields (decode ~context ~path:[] ~inside_include:false))
 
 let decode ~file =
-  let open Dune_lang.Decoder in
-  let* sexps = decode_includes ~context:(Include_stanza.in_file file) in
-  let* () = set_input [ List (Loc.none, sexps) ] in
-  decode
+  let open Decoder_build in
+  let* nodes = decode_includes ~context:(Include_stanza.in_file file) in
+  let* () =
+    set_input (Memo.Build.return [ Dune_lang.Decoder.List (Loc.none, nodes) ])
+  in
+  liftM decode

@@ -2232,15 +2232,19 @@ module Stanzas = struct
 
   let rec parse_file_includes ~stanza_parser ~context sexps =
     List.concat_map sexps ~f:(parse stanza_parser)
-    |> List.concat_map ~f:(function
+    |> List.map ~f:(function
          | Include (loc, fn) ->
            let sexps, context = Include_stanza.load_sexps ~context (loc, fn) in
-           parse_file_includes ~stanza_parser ~context sexps
-         | stanza -> [ stanza ])
+           Memo.Build.bind sexps
+             ~f:(parse_file_includes ~stanza_parser ~context)
+         | stanza -> Memo.Build.return [ stanza ])
+    |> Memo.Build.all
+    |> Memo.Build.map ~f:List.flatten
 
   let parse ~file (project : Dune_project.t) sexps =
+    let open Memo.Build.O in
     let stanza_parser = parser project in
-    let stanzas =
+    let+ stanzas =
       let context = Include_stanza.in_file file in
       parse_file_includes ~stanza_parser ~context sexps
     in
@@ -2278,7 +2282,8 @@ type t =
   }
 
 let parse sexps ~dir ~file ~project =
-  let stanzas = Stanzas.parse ~file project sexps in
+  let open Memo.Build.O in
+  let+ stanzas = Stanzas.parse ~file project sexps in
   let stanzas =
     if !Clflags.ignore_promoted_rules then
       List.filter stanzas ~f:(function

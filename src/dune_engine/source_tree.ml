@@ -80,18 +80,24 @@ module Dune_file = struct
     | None -> Sub_dirs.default
     | Some t -> Sub_dirs.or_default t.plain.contents.subdir_status
 
+  module Decoder_build = Dune_lang.Decoder.Make (Memo.Build)
+
   let load_plain sexps ~file ~from_parent ~project =
     let decoder =
-      Dune_project.set_parsing_context project (Sub_dirs.decode ~file)
+      Decoder_build.set_many
+        (Dune_project.parsing_context project)
+        (Sub_dirs.decode ~file)
     in
-    let active =
+    let+ active =
       let parsed =
-        Dune_lang.Decoder.parse decoder Univ_map.empty
+        Decoder_build.parse decoder Univ_map.empty
           (Dune_lang.Ast.List (Loc.none, sexps))
       in
       match from_parent with
       | None -> parsed
-      | Some from_parent -> Sub_dirs.Dir_map.merge parsed from_parent
+      | Some from_parent ->
+        let+ parsed = parsed in
+        Sub_dirs.Dir_map.merge parsed from_parent
     in
     let contents = Sub_dirs.Dir_map.root active in
     { Plain.contents; for_subdirs = active }
@@ -100,15 +106,20 @@ module Dune_file = struct
     let+ kind, plain =
       match file_exists with
       | false ->
-        Memo.Build.return (Plain, load_plain [] ~file ~from_parent ~project)
+        let+ plain = load_plain [] ~file ~from_parent ~project in
+        (Plain, plain)
       | true ->
-        Fs_memo.with_lexbuf_from_file (Path.source file) ~f:(fun lb ->
-            if Dune_lexer.is_script lb then
-              let from_parent = load_plain [] ~file ~from_parent ~project in
-              (Ocaml_script, from_parent)
-            else
-              let sexps = Dune_lang.Parser.parse lb ~mode:Many in
-              (Plain, load_plain sexps ~file ~from_parent ~project))
+        let* x =
+          Fs_memo.with_lexbuf_from_file (Path.source file) ~f:(fun lb ->
+              if Dune_lexer.is_script lb then
+                let+ from_parent = load_plain [] ~file ~from_parent ~project in
+                (Ocaml_script, from_parent)
+              else
+                let sexps = Dune_lang.Parser.parse lb ~mode:Many in
+                let+ plain = load_plain sexps ~file ~from_parent ~project in
+                (Plain, plain))
+        in
+        x
     in
     { path = file; kind; plain }
 end
