@@ -263,3 +263,42 @@ val ( let* ) : ('a, 'k) parser -> ('a -> ('b, 'k) parser) -> ('b, 'k) parser
 val ( let+ ) : ('a, 'k) parser -> ('a -> 'b) -> ('b, 'k) parser
 
 val ( and+ ) : ('a, 'k) parser -> ('b, 'k) parser -> ('a * 'b, 'k) parser
+
+module Make (M : Monad) : sig
+  type ('a, 'kind) p
+
+  type ('a, 'kind) parser
+
+  type 'a t = ('a, values) parser
+
+  type 'a fields_parser = ('a, fields) parser
+
+  val parse : 'a t -> Univ_map.t -> ast -> 'a M.t
+
+  val leftover_fields : Ast.t list fields_parser
+
+  val set_many : Univ_map.t -> ('a, 'k) parser -> ('a, 'k) parser
+
+  val loc : (Loc.t, _) parser
+
+  val plain_string : (loc:Loc.t -> string -> 'a) -> 'a t
+
+  val enter : 'a t -> 'a t
+
+  val fields : 'a fields_parser -> 'a t
+
+  val multi_field : string -> 'a t -> 'a list fields_parser
+
+  val relative_file : string t
+
+  val set_input : ast list M.t -> (unit, 'k) parser
+
+  val ( let* ) : ('a, 'k) parser -> ('a -> ('b, 'k) parser) -> ('b, 'k) parser
+
+  val ( let+ ) : ('a, 'k) parser -> ('a -> 'b) -> ('b, 'k) parser
+
+  val ( and+ ) : ('a, 'k) parser -> ('b, 'k) parser -> ('a * 'b, 'k) parser
+
+  val liftM : ('a, 'k) p -> ('a, 'k) parser
+end
+with type ('a, 'kind) p := ('a, 'kind) parser
