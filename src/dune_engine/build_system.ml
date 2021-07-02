@@ -685,15 +685,17 @@ let no_rule_found t ~loc fn =
 
 (* +-------------------- Adding rules to the system --------------------+ *)
 
+let build_file_f = Fdecl.create (fun _ -> assert false)
+
 let source_file_digest path =
-  Fs_memo.path_exists path >>= function
-  | true ->
-    let+ d = Fs_memo.file_digest path in
-    d
-  | false ->
-    let+ loc = Rule_fn.loc () in
-    User_error.raise ?loc
-      [ Pp.textf "File unavailable: %s" (Path.to_string_maybe_quoted path) ]
+  Fdecl.get build_file_f path
+  (* | true -> *)
+  (*   let+ d = Fs_memo.file_digest path in *)
+  (*   d *)
+  (* | false -> *)
+  (*   let+ loc = Rule_fn.loc () in *)
+  (*   User_error.raise ?loc *)
+  (*     [ Pp.textf "File unavailable: %s" (Path.to_string_maybe_quoted path) ] *)
 
 let eval_source_file :
     type a. a Action_builder.eval_mode -> Path.t -> a Memo.Build.t =
@@ -2367,6 +2369,9 @@ let run_exn f =
   | Error `Already_reported -> raise Dune_util.Report_error.Already_reported
 
 let build_file = build_file
+
+let () =
+  Fdecl.set build_file_f build_file
 
 let read_file p ~f =
   let+ _digest = build_file p in

@@ -8,3 +8,5 @@ val load_sexps :
      context:context
   -> Loc.t * string
   -> Dune_lang.Ast.t list Memo.Build.t * context
+
+val read_sexps : (Path.t -> Dune_lang.Ast.t list Memo.Build.t) Fdecl.t

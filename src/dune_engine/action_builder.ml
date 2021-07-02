@@ -114,6 +114,10 @@ let read_sexp p =
   let+ s = contents p in
   Dune_lang.Parser.parse_string s ~fname:(Path.to_string p) ~mode:Single
 
+let read_sexps p =
+  let+ s = contents p in
+  Dune_lang.Parser.parse_string s ~fname:(Path.to_string p) ~mode:Many
+
 let if_file_exists p ~then_ ~else_ =
   of_thunk
     { f =

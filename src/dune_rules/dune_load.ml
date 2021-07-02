@@ -256,3 +256,10 @@ let load () =
 let load =
   let memo = Memo.lazy_ load in
   fun () -> Memo.Lazy.force memo
+
+let () =
+  let open Memo.Build.O in
+  Fdecl.set Include_stanza.read_sexps
+    (fun p ->
+       let+ sexps, _ = Action_builder.run (Action_builder.read_sexps p) Eager in
+       sexps)

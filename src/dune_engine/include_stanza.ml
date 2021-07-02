@@ -31,19 +31,22 @@ let error { current_file = file; include_stack } =
                   (Pp.textf "included from %s" (line_loc x)))))
     ]
 
+let read_sexps =
+  Fdecl.create (fun _ -> assert false)
+
 let load_sexps ~context:{ current_file; include_stack } (loc, fn) =
   let include_stack = (loc, current_file) :: include_stack in
   let dir = Path.Source.parent_exn current_file in
   let current_file = Path.Source.relative dir fn in
-  if not (Path.Untracked.exists (Path.source current_file)) then
-    User_error.raise ~loc
-      [ Pp.textf "File %s doesn't exist."
-          (Path.Source.to_string_maybe_quoted current_file)
-      ];
+  (* if not (Path.Untracked.exists (Path.source current_file)) then *)
+  (*   User_error.raise ~loc *)
+  (*     [ Pp.textf "File %s doesn't exist." *)
+  (*         (Path.Source.to_string_maybe_quoted current_file) *)
+  (*     ]; *)
   if
     List.exists include_stack ~f:(fun (_, f) ->
         Path.Source.equal f current_file)
   then
     error { current_file; include_stack };
-  let sexps = Dune_lang.Parser.load (Path.source current_file) ~mode:Many in
-  (Memo.Build.return sexps, { current_file; include_stack })
+  let sexps = Fdecl.get read_sexps (Path.source current_file) in
+  sexps, { current_file; include_stack }
